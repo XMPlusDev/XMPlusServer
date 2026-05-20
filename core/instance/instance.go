@@ -141,7 +141,7 @@ func (i *Instance) Start() error {
 		return fmt.Errorf("failed to load config: %s", err)
 	}
 
-	lim := limiter.New()
+	lim := limiter.New(server)
 	ld, err := limitDispatcher.RegisterOn(server, lim)
 	if err != nil {
 		return fmt.Errorf("failed to register limiting dispatcher: %s", err)

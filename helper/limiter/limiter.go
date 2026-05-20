@@ -4,12 +4,14 @@ package limiter
 import (
 	"context"
 	"fmt"
-	"strconv"
 	"strings"
 	"sync"
 	"time"
 	"log"
 
+	"github.com/xtls/xray-core/core"
+	"github.com/xtls/xray-core/features/stats"
+	
 	"github.com/eko/gocache/lib/v4/cache"
 	"github.com/eko/gocache/lib/v4/marshaler"
 	"github.com/eko/gocache/lib/v4/store"
@@ -21,14 +23,10 @@ import (
 )
 
 const (
-	trafficUpPrefix   = "xmray:traffic:up:"
-	trafficDownPrefix = "xmray:traffic:down:"
 	trafficUsedPrefix  = "xmray:traffic:used:"
     trafficLimitPrefix = "xmray:traffic:limit:"
 )
 
-func trafficUpKey(email string) string   { return trafficUpPrefix + email }
-func trafficDownKey(email string) string { return trafficDownPrefix + email }
 func trafficUsedKey(uniqueKey string) string { return trafficUsedPrefix + uniqueKey }
 func trafficLimitKey(uniqueKey string) string { return trafficLimitPrefix + uniqueKey }
 
@@ -55,15 +53,20 @@ type InboundInfo struct {
 		redisClient    *redis.Client
 	}
 	trafficRedis  *redis.Client
-	trafficExpiry time.Duration 
 }
 
 type Limiter struct {
-	InboundInfo *sync.Map // key: tag → *InboundInfo
+	server      *core.Instance
+	InboundInfo *sync.Map 
+	stm         stats.Manager
 }
 
-func New() *Limiter {
-	return &Limiter{InboundInfo: new(sync.Map)}
+func New(server *core.Instance) *Limiter {
+	return &Limiter{
+		server: server, 
+		InboundInfo: new(sync.Map),
+		stm:    server.GetFeature(stats.ManagerType()).(stats.Manager),
+	}
 }
 
 func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, subscriptionList *[]api.SubscriptionInfo, redisConfig *RedisConfig) error {
@@ -71,7 +74,6 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		Tag:            tag,
 		NodeSpeedLimit: nodeSpeedLimit,
 		BucketHub:      new(sync.Map),
-		trafficExpiry:  time.Duration(expiry*2) * time.Second,
 	}
 
 	if redisConfig != nil && redisConfig.Enable {
@@ -127,7 +129,7 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 			if inboundInfo.trafficRedis != nil && u.TrafficLimit > 0 {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				uniqueKey := strings.TrimPrefix(key, tag+"_")
-				inboundInfo.trafficRedis.Set(ctx, trafficUsedKey(uniqueKey),  u.UsedTraffic,  0)
+				//inboundInfo.trafficRedis.Set(ctx, trafficUsedKey(uniqueKey),  u.UsedTraffic,  0)
 				inboundInfo.trafficRedis.Set(ctx, trafficLimitKey(uniqueKey), u.TrafficLimit, 0)
 				cancel()
 			}
@@ -176,8 +178,6 @@ func (l *Limiter) DeleteSubscriptionBuckets(tag string, emails []string) {
 				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
 				uniqueKey := strings.TrimPrefix(email, tag+"_")
 				inboundInfo.trafficRedis.Del(ctx,
-					trafficUpKey(email),
-					trafficDownKey(email),
 					trafficUsedKey(uniqueKey),
 					trafficLimitKey(uniqueKey),
 				)
@@ -335,13 +335,6 @@ func (l *Limiter) AddDelta(tag, email string, upload, download int64) bool {
     uniqueKey := strings.TrimPrefix(email, tag+"_")
     total := upload + download
 
-    if upload > 0 {
-        rc.IncrBy(ctx, trafficUpKey(email), upload)
-    }
-    if download > 0 {
-        rc.IncrBy(ctx, trafficDownKey(email), download)
-    }
-
     limitVal, err := rc.Get(ctx, trafficLimitKey(uniqueKey)).Int64()
     if err != nil || limitVal == 0 {
         return false
@@ -355,49 +348,68 @@ func (l *Limiter) AddDelta(tag, email string, upload, download int64) bool {
     return newUsed >= limitVal
 }
 
-func (l *Limiter) DrainDeltas(tag string) []api.SubscriptionTraffic {
+type PendingTraffic struct {
+	Result       []api.SubscriptionTraffic
+	UpCounters   []stats.Counter
+	DownCounters []stats.Counter
+}
+
+func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
 	value, ok := l.InboundInfo.Load(tag)
 	if !ok {
 		return nil
 	}
 	inboundInfo := value.(*InboundInfo)
-
 	if inboundInfo.trafficRedis == nil {
 		return nil
 	}
 
-	ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-	defer cancel()
-
-	rc := inboundInfo.trafficRedis
-	var result []api.SubscriptionTraffic
+	var pending PendingTraffic
 
 	inboundInfo.SubscriptionInfo.Range(func(k, v interface{}) bool {
 		email := k.(string)
 		sub := v.(SubscriptionInfo)
 
-		upStr, errUp := rc.GetDel(ctx, trafficUpKey(email)).Result()
-		downStr, errDown := rc.GetDel(ctx, trafficDownKey(email)).Result()
+		upCounter   := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>uplink")
+		downCounter := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>downlink")
 
-		var up, down int64
-		if errUp == nil {
-			up, _ = strconv.ParseInt(upStr, 10, 64)
+		if upCounter != nil {
+			pending.UpCounters = append(pending.UpCounters, upCounter)
 		}
-		if errDown == nil {
-			down, _ = strconv.ParseInt(downStr, 10, 64)
+		if downCounter != nil {
+			pending.DownCounters = append(pending.DownCounters, downCounter)
+		}
+
+		up, down := int64(0), int64(0)
+		if upCounter != nil {
+			up = upCounter.Value()
+		}
+		if downCounter != nil {
+			down = downCounter.Value()
 		}
 
 		if up == 0 && down == 0 {
 			return true
 		}
-		result = append(result, api.SubscriptionTraffic{
+
+		pending.Result = append(pending.Result, api.SubscriptionTraffic{
 			Id:       sub.Id,
 			Upload:   up,
 			Download: down,
 		})
 		return true
 	})
-	return result
+
+	return &pending
+}
+
+func (l *Limiter) ResetTraffic(upCounters, downCounters *[]stats.Counter) {
+	for _, c := range *upCounters {
+		c.Set(0)
+	}
+	for _, c := range *downCounters {
+		c.Set(0)
+	}
 }
 
 func (l *Limiter) CheckTrafficExceeded(tag string) []string {

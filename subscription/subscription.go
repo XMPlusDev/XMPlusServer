@@ -148,13 +148,14 @@ func (m *Manager) SubscriptionMonitor(
 	tag string,
 	logPrefix string,
 ) error {
-	subscriptionTraffic := m.dispatcher.DrainDeltas(tag)
- 
-	if len(subscriptionTraffic) > 0 {
-		if err := m.client.ReportTraffic(&subscriptionTraffic); err != nil {
+	pendingTraffic := m.dispatcher.DrainDeltas(tag)
+
+	if len(pendingTraffic.Result) > 0 {
+		if err := m.client.ReportTraffic(&pendingTraffic.Result); err != nil {
 			log.Print(err)
 		} else {
-			log.Printf("%s Report %d Subscription Traffic Usage Data", logPrefix, len(subscriptionTraffic))
+			log.Printf("%s Report %d Subscription Traffic Usage Data", logPrefix, len(pendingTraffic.Result))
+			m.dispatcher.ResetTraffic(pendingTraffic)
 		}
 	}
  

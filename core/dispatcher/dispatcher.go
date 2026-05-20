@@ -410,10 +410,14 @@ func (ld *LimitingDispatcher) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) 
 	return ld.limiter.GetOnlineIPs(tag)
 }
 
-func (ld *LimitingDispatcher) DrainDeltas(tag string) []api.SubscriptionTraffic {
+func (ld *LimitingDispatcher) DrainDeltas(tag string) *limiter.PendingTraffic {
 	return ld.limiter.DrainDeltas(tag)
 }
 
 func (ld *LimitingDispatcher) CheckTrafficExceeded(tag string) []string {
 	return ld.limiter.CheckTrafficExceeded(tag)
+}
+
+func (ld *LimitingDispatcher) ResetTraffic(pending *limiter.PendingTraffic) {
+	ld.limiter.ResetTraffic(&pending.UpCounters, &pending.DownCounters)
 }
