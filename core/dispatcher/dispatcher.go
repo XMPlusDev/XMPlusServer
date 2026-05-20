@@ -19,80 +19,16 @@ import (
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features"
 	"github.com/xtls/xray-core/features/inbound"
-	"github.com/xtls/xray-core/features/policy"
 	"github.com/xtls/xray-core/features/routing"
-	"github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/transport"
 
 	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/helper/counter"
 	"github.com/xmplusdev/xmray/helper/limiter"
 
 	"golang.org/x/time/rate"
 )
-
-type SizeStatWriter struct {
-	Counter stats.Counter
-	Writer  buf.Writer
-}
-
-func (w *SizeStatWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
-	w.Counter.Add(int64(mb.Len()))
-	return w.Writer.WriteMultiBuffer(mb)
-}
-func (w *SizeStatWriter) Close() error { return common.Close(w.Writer) }
-func (w *SizeStatWriter) Interrupt()   { common.Interrupt(w.Writer) }
-
-type TrafficLimitWriter struct {
-	Writer buf.Writer
-	tag    string
-	email  string
-	lim    *limiter.Limiter
-	cancel context.CancelFunc
-	once   sync.Once
-}
-
-func (w *TrafficLimitWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
-	n := int64(mb.Len())
-	if w.lim.AddDelta(w.tag, w.email, 0, n) {
-		w.once.Do(w.cancel)
-		buf.ReleaseMulti(mb)
-		return errors.New("traffic limit exceeded for ", w.email)
-	}
-	return w.Writer.WriteMultiBuffer(mb)
-}
-
-func (w *TrafficLimitWriter) Close() error { return common.Close(w.Writer) }
-func (w *TrafficLimitWriter) Interrupt()   { common.Interrupt(w.Writer) }
-
-type TrafficLimitReader struct {
-	Reader buf.TimeoutReader
-	tag    string
-	email  string
-	lim    *limiter.Limiter
-	cancel context.CancelFunc
-	once   sync.Once
-}
-
-func (r *TrafficLimitReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
-	mb, err := r.Reader.ReadMultiBuffer()
-	if err != nil {
-		return nil, err
-	}
-	n := int64(mb.Len())
-	if r.lim.AddDelta(r.tag, r.email, n, 0) {
-		r.once.Do(r.cancel)
-		buf.ReleaseMulti(mb)
-		return nil, errors.New("traffic limit exceeded for ", r.email)
-	}
-	return mb, nil
-}
-
-func (r *TrafficLimitReader) ReadMultiBufferTimeout(d interface{ Nanoseconds() int64 }) (buf.MultiBuffer, error) {
-	return r.ReadMultiBuffer()
-}
-
-func (r *TrafficLimitReader) Interrupt() { common.Interrupt(r.Reader) }
 
 func maskIP(ipStr string, keepSegments int) string {
 	ip := netModule.ParseIP(ipStr)
@@ -135,15 +71,11 @@ func RegisterOn(server *core.Instance, lim *limiter.Limiter) (*LimitingDispatche
 	}
 
 	ibm, _ := server.GetFeature(inbound.ManagerType()).(inbound.Manager)
-	pm, _ := server.GetFeature(policy.ManagerType()).(policy.Manager)
-	sm, _ := server.GetFeature(stats.ManagerType()).(stats.Manager)
 
 	ld := &LimitingDispatcher{
 		inner:   inner,
 		limiter: lim,
 		ibm:     ibm,
-		policy:  pm,
-		stats:   sm,
 	}
 
 	if err := replaceFeature(server, routing.DispatcherType(), ld); err != nil {
@@ -175,8 +107,7 @@ type LimitingDispatcher struct {
 	inner   routing.Dispatcher
 	limiter *limiter.Limiter
 	ibm     inbound.Manager
-	policy  policy.Manager
-	stats   stats.Manager
+	counters sync.Map
 }
 
 func (ld *LimitingDispatcher) Type() interface{} { return routing.DispatcherType() }
@@ -282,6 +213,17 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 	}, nil
 }
 
+func (ld *LimitingDispatcher) getOrCreateCounter(tag string) *counter.TrafficCounter {
+	if v, ok := ld.counters.Load(tag); ok {
+		return v.(*counter.TrafficCounter)
+	}
+	tc := counter.NewTrafficCounter()
+	if v, loaded := ld.counters.LoadOrStore(tag, tc); loaded {
+		return v.(*counter.TrafficCounter)
+	}
+	return tc
+}
+
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
 	sc, err := ld.resolveSession(ctx, link)
 	if err != nil || sc == nil {
@@ -290,26 +232,19 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 
 	ctx2, cancel := context.WithCancel(ctx)
 	_ = ctx2
-	link.Writer = &TrafficLimitWriter{
-		Writer: link.Writer,
-		tag:    sc.info.tag,
-		email:  sc.info.email,
-		lim:    ld.limiter,
-		cancel: cancel,
+	
+	tc := ld.getOrCreateCounter(sc.info.tag)
+	storage := tc.GetCounter(sc.info.email)
+	
+	link.Writer = &counter.StatWriter{
+		Writer:  link.Writer,
+		Storage: storage,
+		Delta:   func(up, down int64) bool { return ld.limiter.AddDelta(sc.info.tag, sc.info.email, up, down) },
+		Cancel:  cancel,
 	}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
-	}
-
-	if ld.stats != nil && ld.policy != nil {
-		p := ld.policy.ForLevel(sc.info.level)
-		if p.Stats.UserUplink {
-			name := "user>>>" + sc.info.email + ">>>traffic>>>uplink"
-			if c, _ := stats.GetOrRegisterCounter(ld.stats, name); c != nil {
-				link.Writer = &SizeStatWriter{Counter: c, Writer: link.Writer}
-			}
-		}
 	}
 
 	return nil
@@ -317,7 +252,7 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 
 func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link) (*transport.Link, error) {
 	twr := &buf.TimeoutWrapperReader{Reader: link.Reader}
-	link.Reader = twr  // keep twr for later use
+	link.Reader = twr
 
 	sc, err := ld.resolveSession(ctx, link)
 	if err != nil || sc == nil {
@@ -327,45 +262,32 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 	ctx2, cancel := context.WithCancel(ctx)
 	_ = ctx2
 
-	link.Writer = &TrafficLimitWriter{
-		Writer: link.Writer,
-		tag:    sc.info.tag,
-		email:  sc.info.email,
-		lim:    ld.limiter,
-		cancel: cancel,
+	tc := ld.getOrCreateCounter(sc.info.tag)
+	storage := tc.GetCounter(sc.info.email)
+	
+	delta := func(up, down int64) bool {
+		return ld.limiter.AddDelta(sc.info.tag, sc.info.email, up, down)
+	}
+	
+	link.Writer = &counter.StatWriter{
+		Writer:  link.Writer,
+		Storage: storage,
+		Delta:   delta,
+		Cancel:  cancel,
+		Email:   sc.info.email,
 	}
 
-	link.Reader = &TrafficLimitReader{
-		Reader: twr,        // always the TimeoutWrapperReader
-		tag:    sc.info.tag,
-		email:  sc.info.email,
-		lim:    ld.limiter,
-		cancel: cancel,
+	link.Reader = &counter.StatReader{
+		Reader:  twr,
+		Storage: storage,
+		Delta:   delta,
+		Cancel:  cancel,
+		Email:   sc.info.email,
 	}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
-		// Pass twr directly — no type assertion on link.Reader
 		link.Reader = ld.limiter.RateTimeoutReader(twr, sc.bucket)
-	}
-
-	if ld.stats != nil && ld.policy != nil {
-		p := ld.policy.ForLevel(sc.info.level)
-
-		if p.Stats.UserUplink {
-			name := "user>>>" + sc.info.email + ">>>traffic>>>uplink"
-			if c, _ := stats.GetOrRegisterCounter(ld.stats, name); c != nil {
-				// twr is always available here, no type switch needed
-				twr.Counter = c
-			}
-		}
-
-		if p.Stats.UserDownlink {
-			name := "user>>>" + sc.info.email + ">>>traffic>>>downlink"
-			if c, _ := stats.GetOrRegisterCounter(ld.stats, name); c != nil {
-				link.Writer = &SizeStatWriter{Counter: c, Writer: link.Writer}
-			}
-		}
 	}
 
 	return link, nil
@@ -411,7 +333,11 @@ func (ld *LimitingDispatcher) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) 
 }
 
 func (ld *LimitingDispatcher) DrainDeltas(tag string) *limiter.PendingTraffic {
-	return ld.limiter.DrainDeltas(tag)
+	tc, ok := ld.GetTrafficCounter(tag)
+	if !ok || tc == nil {
+		return nil
+	}
+	return ld.limiter.DrainDeltas(tag, tc)
 }
 
 func (ld *LimitingDispatcher) CheckTrafficExceeded(tag string) []string {
@@ -419,5 +345,20 @@ func (ld *LimitingDispatcher) CheckTrafficExceeded(tag string) []string {
 }
 
 func (ld *LimitingDispatcher) ResetTraffic(pending *limiter.PendingTraffic) {
-	ld.limiter.ResetTraffic(&pending.UpCounters, &pending.DownCounters)
+	if pending == nil {
+		return
+	}
+	ld.limiter.ResetTraffic(pending)
+}
+
+func (ld *LimitingDispatcher) GetTrafficCounter(tag string) (*counter.TrafficCounter, bool) {
+	v, ok := ld.counters.Load(tag)
+	if !ok {
+		return nil, false
+	}
+	return v.(*counter.TrafficCounter), true
+}
+
+func (ld *LimitingDispatcher) DeleteTrafficCounter(tag string) {
+	ld.counters.Delete(tag)
 }

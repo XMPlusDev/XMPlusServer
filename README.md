@@ -29,12 +29,12 @@ ConnectionConfig:
   DownlinkOnly: 0 
   BufferSize: 64
 ReverbConfig:
-  - Enable: false
-    Host: "api.xyz.com:443" # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
-    AppKey:      # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
-    AppSecret:   # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
-    Channel: privatexmplus # Do not change
-    UseTLS: true  # Set to true if tls enabled for api
+  - Enable: false             # Enable websocket to trigger real-time subscription and node changes data refetch from panel
+    Host: "api.xyz.com:443"   # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
+    AppKey:                   # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
+    AppSecret:                # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
+    Channel: private-xmplus   # Do not change
+    UseTLS: true              # Set to true if tls enabled for api
 Nodes:
   -
     ApiConfig:

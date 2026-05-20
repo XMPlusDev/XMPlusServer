@@ -20,6 +20,7 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/xmplusdev/xmray/api"
+	"github.com/xmplusdev/xmray/helper/counter"
 )
 
 const (
@@ -90,7 +91,7 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
 		inboundInfo.trafficRedis = rc
 	} else {
-		return fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled; traffic quota check, ip limit and node traffic report requires redis to be enabled", tag)
+		return fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled; traffic quota check, ip limit requires redis to be enabled", tag)
 	}
 
 	subscriptionMap := new(sync.Map)
@@ -348,42 +349,32 @@ func (l *Limiter) AddDelta(tag, email string, upload, download int64) bool {
     return newUsed >= limitVal
 }
 
-type PendingTraffic struct {
-	Result       []api.SubscriptionTraffic
-	UpCounters   []stats.Counter
-	DownCounters []stats.Counter
+type pendingCounter struct {
+	storage *counter.TrafficStorage
+	up      int64
+	down    int64
 }
 
-func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
+type PendingTraffic struct {
+	Result   []api.SubscriptionTraffic
+	Counters []pendingCounter
+}
+
+func (l *Limiter) DrainDeltas(tag string, tc *counter.TrafficCounter) *PendingTraffic {
 	value, ok := l.InboundInfo.Load(tag)
 	if !ok {
 		return nil
 	}
 	inboundInfo := value.(*InboundInfo)
 
-	var pending PendingTraffic
+	pending := &PendingTraffic{}
 
 	inboundInfo.SubscriptionInfo.Range(func(k, v interface{}) bool {
 		email := k.(string)
 		sub := v.(SubscriptionInfo)
 
-		upCounter   := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>uplink")
-		downCounter := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>downlink")
-
-		if upCounter != nil {
-			pending.UpCounters = append(pending.UpCounters, upCounter)
-		}
-		if downCounter != nil {
-			pending.DownCounters = append(pending.DownCounters, downCounter)
-		}
-
-		up, down := int64(0), int64(0)
-		if upCounter != nil {
-			up = upCounter.Value()
-		}
-		if downCounter != nil {
-			down = downCounter.Value()
-		}
+		up   := tc.GetUpCount(email)
+		down := tc.GetDownCount(email)
 
 		if up == 0 && down == 0 {
 			return true
@@ -394,18 +385,32 @@ func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
 			Upload:   up,
 			Download: down,
 		})
+
+		if s := tc.GetCounter(email); s != nil {
+			pending.Counters = append(pending.Counters, pendingCounter{
+				storage: s,
+				up:      up,
+				down:    down,
+			})
+		}
+
 		return true
 	})
 
-	return &pending
+	if len(pending.Result) == 0 {
+		return nil
+	}
+
+	return pending
 }
 
-func (l *Limiter) ResetTraffic(upCounters, downCounters *[]stats.Counter) {
-	for _, c := range *upCounters {
-		c.Set(0)
+func (l *Limiter) ResetTraffic(pending *PendingTraffic) {
+	if pending == nil {
+		return
 	}
-	for _, c := range *downCounters {
-		c.Set(0)
+	for _, pc := range pending.Counters {
+		pc.storage.UpCounter.Add(-pc.up)
+	    pc.storage.DownCounter.Add(-pc.down)
 	}
 }
 
