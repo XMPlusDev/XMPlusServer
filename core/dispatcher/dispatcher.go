@@ -316,7 +316,8 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 }
 
 func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link) (*transport.Link, error) {
-	link.Reader = &buf.TimeoutWrapperReader{Reader: link.Reader}
+	twr := &buf.TimeoutWrapperReader{Reader: link.Reader}
+	link.Reader = twr  // keep twr for later use
 
 	sc, err := ld.resolveSession(ctx, link)
 	if err != nil || sc == nil {
@@ -335,16 +336,17 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 	}
 
 	link.Reader = &TrafficLimitReader{
-	 	Reader: link.Reader.(*buf.TimeoutWrapperReader),
-	 	tag:    sc.info.tag,
-	 	email:  sc.info.email,
-	 	lim:    ld.limiter,
+		Reader: twr,        // always the TimeoutWrapperReader
+		tag:    sc.info.tag,
+		email:  sc.info.email,
+		lim:    ld.limiter,
 		cancel: cancel,
 	}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
-		link.Reader = ld.limiter.RateTimeoutReader(link.Reader.(*buf.TimeoutWrapperReader), sc.bucket)
+		// Pass twr directly — no type assertion on link.Reader
+		link.Reader = ld.limiter.RateTimeoutReader(twr, sc.bucket)
 	}
 
 	if ld.stats != nil && ld.policy != nil {
@@ -353,12 +355,8 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 		if p.Stats.UserUplink {
 			name := "user>>>" + sc.info.email + ">>>traffic>>>uplink"
 			if c, _ := stats.GetOrRegisterCounter(ld.stats, name); c != nil {
-				switch tr := link.Reader.(type) {
-				case *limiter.TimeoutReader:
-					tr.Reader.(*buf.TimeoutWrapperReader).Counter = c
-				case *buf.TimeoutWrapperReader:
-					tr.Counter = c
-				}
+				// twr is always available here, no type switch needed
+				twr.Counter = c
 			}
 		}
 
