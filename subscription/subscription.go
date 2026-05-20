@@ -150,7 +150,7 @@ func (m *Manager) SubscriptionMonitor(
 ) error {
 	pendingTraffic := m.dispatcher.DrainDeltas(tag)
 
-	if len(pendingTraffic.Result) > 0 {
+	if pendingTraffic != nil && len(pendingTraffic.Result) > 0 {
 		if err := m.client.ReportTraffic(&pendingTraffic.Result); err != nil {
 			log.Print(err)
 		} else {

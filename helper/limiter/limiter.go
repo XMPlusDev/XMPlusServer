@@ -360,9 +360,6 @@ func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
 		return nil
 	}
 	inboundInfo := value.(*InboundInfo)
-	if inboundInfo.trafficRedis == nil {
-		return nil
-	}
 
 	var pending PendingTraffic
 
