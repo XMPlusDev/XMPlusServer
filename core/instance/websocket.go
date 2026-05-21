@@ -54,7 +54,7 @@ func (i *Instance) reverbListener(ctx context.Context, cfg *ReverbConfig) {
 		default:
 		}
 
-		log.Printf("[Reverb] Connecting to websocket (Channel=[%s]) via [%s]", reverbChannel, cfg.Host)
+		log.Printf("[Reverb] Connecting to websocket channel=[%s] via [%s]", reverbChannel, cfg.Host)
 
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, http.Header{})
 		if err != nil {
