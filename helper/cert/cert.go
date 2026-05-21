@@ -309,6 +309,8 @@ func identifyService(processName string) *ServiceInfo {
 		"caddy":    "caddy",
 		"traefik":  "traefik",
 		"lighttpd": "lighttpd",
+		"xmbox": "XMBox",
+		"XMBox": "XMBox",
 	}
 
 	for proc, service := range serviceMap {

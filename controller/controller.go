@@ -35,6 +35,8 @@ type Controller struct {
 	LogPrefix        string
 	RelayTag         string
 	Relay            bool
+	currentPollInterval time.Duration
+	
 	subscriptionList *[]api.SubscriptionInfo
 	taskManager      *task.Manager
 	nodeManager      *node.Manager
@@ -42,6 +44,7 @@ type Controller struct {
 
 	nodeSyncTrigger chan struct{}
 	subscriptionSyncTrigger chan struct{}
+	intervalChangeCh        chan time.Duration
 	triggerCtx      context.Context
 	triggerCancel   context.CancelFunc
 }
@@ -59,6 +62,7 @@ func New(server *core.Instance, api api.API, config *node.Config, dispatcher *di
 		subManager:      subscription.NewManager(server, api, dispatcher),
 		nodeSyncTrigger: make(chan struct{}, 1),
 		subscriptionSyncTrigger: make(chan struct{}, 1),
+		intervalChangeCh:        make(chan time.Duration, 1),
 		triggerCtx:      ctx,
 		triggerCancel:   cancel,
 	}
@@ -156,19 +160,19 @@ func (c *Controller) Start() error {
 
 	c.LogPrefix = c.logPrefix()
 
-	pollInterval := c.pollInterval()
+	c.currentPollInterval = c.pollInterval()
 
 	c.taskManager.Add(task.NewWithDelay(
 		c.LogPrefix,
-		"server",
-		pollInterval,
+		"node",
+		c.currentPollInterval,
 		c.apiMonitor,
 	))
 
 	c.taskManager.Add(task.NewWithDelay(
 		c.LogPrefix,
 		"subscriptions",
-		pollInterval,
+		c.currentPollInterval,
 		func() error {
 			return c.subManager.SubscriptionMonitor(c.Tag, c.LogPrefix)
 		},
@@ -178,14 +182,14 @@ func (c *Controller) Start() error {
 		if c.nodeInfo.TlsSettings.CertMode != "none" {
 			c.taskManager.Add(task.NewWithDelay(
 				c.LogPrefix,
-				"cert renew",
-				pollInterval*60,
+				"cert_renew",
+				c.currentPollInterval*60,
 				c.certMonitor,
 			))
 		}
 	}
 
-	go c.webhookTriggerLoop(pollInterval)
+	go c.webhookTriggerLoop(c.currentPollInterval)
 
 	log.Printf("%s Starting %d task schedulers", c.logPrefix(), c.taskManager.Count())
 	return c.taskManager.StartAll()
@@ -213,7 +217,12 @@ func (c *Controller) webhookTriggerLoop(fallbackInterval time.Duration) {
 
 		case <-c.triggerCtx.Done():
 			return
-
+			
+		case newInterval := <-c.intervalChangeCh:
+			ticker.Reset(newInterval)
+			fallbackInterval = newInterval
+			log.Printf("%s Webhook interval updated to %v", c.LogPrefix, newInterval)
+			
 		case <-c.nodeSyncTrigger:
 			if time.Since(lastSync) < debounceDuration {
 				log.Printf("%s Webhook node trigger debounced", c.LogPrefix)
@@ -270,7 +279,7 @@ func (c *Controller) apiMonitor() (err error) {
 			nodeInfoChanged = false
 			newNodeInfo = c.nodeInfo
 		} else {
-			log.Print(err)
+			log.Printf("%s Controller APIMonitor GetNodeInfo: %v", c.LogPrefix, err)
 			return nil
 		}
 	}
@@ -282,7 +291,7 @@ func (c *Controller) apiMonitor() (err error) {
 			subscriptionChanged = false
 			newSubscriptionInfo = c.subscriptionList
 		} else {
-			log.Print(err)
+			log.Printf("%s Controller APIMonitor GetSubscriptionList: %v", c.LogPrefix, err)
 			return nil
 		}
 	}
@@ -291,10 +300,12 @@ func (c *Controller) apiMonitor() (err error) {
 
 	if c.Relay && InfoUpdated {
 		if err := c.nodeManager.RemoveRelayRules(c.RelayTag, c.subscriptionList); err != nil {
-			log.Print(err)
+			log.Printf("%s Controller APIMonitor RemoveRelayRules: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor RemoveRelayRules: %w", err)
 		}
 		if err := c.nodeManager.RemoveRelayTag(c.RelayTag, c.subscriptionList); err != nil {
-			return err
+			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor RemoveRelayTag: %w", err)
 		}
 		c.Relay = false
 	}
@@ -302,7 +313,7 @@ func (c *Controller) apiMonitor() (err error) {
 	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
 		newRelayNodeInfo, err := c.client.GetTransitNode()
 		if err != nil {
-			log.Panic(err)
+			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
 			return nil
 		}
 		c.relaynodeInfo = newRelayNodeInfo
@@ -315,8 +326,8 @@ func (c *Controller) apiMonitor() (err error) {
 			newSubscriptionInfo,
 		)
 		if err != nil {
-			log.Panic(err)
-			return err
+			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
 		}
 		c.Relay = true
 	}
@@ -325,27 +336,47 @@ func (c *Controller) apiMonitor() (err error) {
 		if !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
 			oldTag := c.Tag
 			if err := c.nodeManager.RemoveTag(oldTag); err != nil {
-				log.Print(err)
+				log.Printf("%s Controller APIMonitor RemoveInboindTag: %v", c.LogPrefix, err)
 				return nil
 			}
 			if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
-				log.Print(err)
+				log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
 			}
 
 			c.nodeInfo = newNodeInfo
 			c.Tag = c.buildNodeTag()
 
 			if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
-				log.Print(err)
+				log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)
 				return nil
 			}
 			if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
-				log.Print(err)
+				log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
 				return nil
 			}
 			if err := c.nodeManager.DeleteInboundLimiter(oldTag); err != nil {
-				log.Print(err)
+				log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
 				return nil
+			}
+			
+			newInterval := c.pollInterval()
+			if c.currentPollInterval != newInterval {
+				for _, tag := range []string{"node", "subscriptions"} {
+					if t := c.taskManager.GetTask(tag); t != nil {
+						if err := t.RestartWithInterval(newInterval); err != nil {
+							log.Printf("%s Failed to restart %s task: %v", c.LogPrefix, tag, err)
+						} else {
+							log.Printf("%s %s task restarted with interval %v", c.LogPrefix, tag, newInterval)
+						}
+					}
+				}
+
+				c.currentPollInterval = newInterval
+
+				select {
+				case c.intervalChangeCh <- newInterval:
+				default:
+				}
 			}
 		} else {
 			nodeInfoChanged = false
@@ -364,7 +395,7 @@ func (c *Controller) apiMonitor() (err error) {
 			newSubscriptionInfo,
 			c.config.RedisConfig,
 		); err != nil {
-			log.Print(err)
+			log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
 			return nil
 		}
 		
@@ -428,14 +459,15 @@ func (c *Controller) certMonitor() error {
 	case "dns", "http", "tls":
 		lego, err := cert.New(c.config.CertConfig)
 		if err != nil {
-			log.Print(err)
+			log.Printf("%s cert init failed: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller CertMonitor Init: %w", err)
 		}
 		_, _, _, err = lego.RenewCert(
 			c.nodeInfo.TlsSettings.CertMode,
 			c.nodeInfo.TlsSettings.CertDomainName,
 		)
 		if err != nil {
-			log.Print(err)
+			log.Printf("%s cert renew failed: %v", c.LogPrefix, err)
 		}
 	}
 	return nil

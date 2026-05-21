@@ -97,6 +97,16 @@ func (pt *PeriodicTask) Restart() error {
 	return pt.Start()
 }
 
+func (pt *PeriodicTask) RestartWithInterval(interval time.Duration) error {
+    if err := pt.Close(); err != nil {
+        return err
+    }
+    pt.mu.Lock()
+    pt.Periodic.Interval = interval
+    pt.mu.Unlock()
+    return pt.Start()
+}
+
 type Manager struct {
 	tasks []*PeriodicTask
 	mu    sync.RWMutex
