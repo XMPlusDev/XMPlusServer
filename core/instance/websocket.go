@@ -30,6 +30,8 @@ type pusherConnected struct {
 	ActivityTimeout int    `json:"activity_timeout"`
 }
 
+const reverbChannel = "private-xmplus"
+
 func (i *Instance) reverbListener(ctx context.Context, cfg *ReverbConfig) {
 	scheme := "ws"
 	if cfg.UseTLS {
@@ -52,11 +54,11 @@ func (i *Instance) reverbListener(ctx context.Context, cfg *ReverbConfig) {
 		default:
 		}
 
-		log.Printf("[Reverb] Connecting to %s channel=%s", url, cfg.Channel)
+		log.Printf("[Reverb] Connecting to websocket (Channel=[%s]) via [%s]", cfg.Host, reverbChannel)
 
 		conn, _, err := websocket.DefaultDialer.DialContext(ctx, url, http.Header{})
 		if err != nil {
-			log.Printf("[Reverb] Dial error: %v — retrying in %s", err, backoff)
+			log.Printf("[Reverb] Connection error: %v — retrying in %s", err, backoff)
 			select {
 			case <-ctx.Done():
 				return
@@ -87,22 +89,19 @@ func (i *Instance) reverbListener(ctx context.Context, cfg *ReverbConfig) {
 func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg *ReverbConfig, pingInterval time.Duration) error {
 	socketID, err := i.awaitConnected(conn)
 	if err != nil {
-		return fmt.Errorf("await connected: %w", err)
+		return fmt.Errorf("Reconnection Error: %w", err)
 	}
-	log.Printf("[Reverb] socket_id=%s", socketID)
 
-	isPrivate := len(cfg.Channel) > 8 && cfg.Channel[:8] == "private-" ||
-		len(cfg.Channel) > 9 && cfg.Channel[:9] == "presence-"
-
-	subData := map[string]string{"channel": cfg.Channel}
-	if isPrivate && cfg.AppSecret != "" {
-		subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, cfg.Channel)
+	subData := map[string]string{"channel": reverbChannel}
+	if cfg.AppSecret != "" {
+		subData["auth"] = signChannel(cfg.AppKey, cfg.AppSecret, socketID, reverbChannel)
 	}
 
 	sub, _ := json.Marshal(pusherMessage{
 		Event: "pusher:subscribe",
 		Data:  mustMarshal(subData),
 	})
+
 	if err := conn.WriteMessage(websocket.TextMessage, sub); err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
@@ -140,13 +139,16 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 			return err
 
 		case <-ping.C:
-			p, _ := json.Marshal(pusherMessage{Event: "pusher:ping", Data: mustMarshal(map[string]any{})})
+			p, _ := json.Marshal(pusherMessage{
+				Event: "pusher:ping",
+				Data:  mustMarshal(map[string]any{}),
+			})
 			if err := conn.WriteMessage(websocket.TextMessage, p); err != nil {
 				return fmt.Errorf("ping: %w", err)
 			}
 
 		case msg := <-msgs:
-			i.handleReverbMessage(msg, cfg.Channel)
+			i.handleReverbMessage(msg, reverbChannel)
 		}
 	}
 }
@@ -180,12 +182,9 @@ func (i *Instance) awaitConnected(conn *websocket.Conn) (string, error) {
 
 func (i *Instance) handleReverbMessage(msg pusherMessage, channel string) {
 	switch msg.Event {
-	case "pusher:pong",
-		"pusher_internal:subscription_succeeded",
-		"pusher:connection_established":
+	case "pusher:pong", "pusher_internal:subscription_succeeded", "pusher:connection_established":
 		return
 	}
-
 	if msg.Channel != channel {
 		return
 	}
@@ -219,7 +218,6 @@ func (i *Instance) handleReverbMessage(msg pusherMessage, channel string) {
 		}
 
 	default:
-		log.Printf("[Reverb] Unknown event %q — ignoring", payload.Event)
 	}
 }
 

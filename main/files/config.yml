@@ -1,12 +1,12 @@
 Log:
   Level: none                                    # Log level: none, error, warning, info, debug 
-  AccessPath: # /etc/XMRay/access.Log
-  ErrorPath: # /etc/XMRay/error.log
+  AccessPath:                                    # /etc/XMRay/access.Log
+  ErrorPath:                                     #  /etc/XMRay/error.log
   DNSLog: false                                  # true or false Whether to enable DNS query in logs
   MaskAddress: half                              # half, full, quater
 DnsConfigPath: /etc/XMRay/dns.json               #https://xtls.github.io/config/dns.html
-RouteConfigPath: #/etc/XMRay/route.json          #https://xtls.github.io/config/routing.html
-OutboundConfigPath: #/etc/XMRay/outbound.json    #https://xtls.github.io/config/outbound.html
+RouteConfigPath:                                 #/etc/XMRay/route.json - #https://xtls.github.io/config/routing.html
+OutboundConfigPath:                              #/etc/XMRay/outbound.json - #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
   Handshake: 8 
   ConnIdle: 120 
@@ -18,7 +18,6 @@ ReverbConfig:
     Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
     AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
     AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
-    Channel: "private-xmplus"                     # Do not change
     UseTLS: true                                  # Set to true if tls enabled for api
 Nodes:
   -
@@ -38,18 +37,18 @@ Nodes:
         CertEnv:                                  # Required when Cert Mode is dns
           CLOUDFLARE_EMAIL:                       # Required when Cert Mode is dns
           CLOUDFLARE_API_KEY:                     # Required when Cert Mode is dns
-      EnableFallback: false   # Only support for Trojan and Vless
-      FallBackConfigs:        # check https://xtls.github.io/config/features/fallback.html for details.
-        - SNI:                # TLS SNI(Server Name Indication), Empty for any
-          Alpn:               # Alpn, Empty for any
-          Path:               # HTTP PATH, Empty for any
-          Dest: 80            # Required, Destination of fallback, 
-          ProxyProtocolVer: 0 # Send PROXY protocol version, 0 for disable
+      EnableFallback: false                       # Only support for Trojan and Vless
+      FallBackConfigs:                            # check https://xtls.github.io/config/features/fallback.html for details.
+        - SNI:                                    # TLS SNI(Server Name Indication), Empty for any
+          Alpn:                                   # Alpn, Empty for any
+          Path:                                   # HTTP PATH, Empty for any
+          Dest: 80                                # Required, Destination of fallback, 
+          ProxyProtocolVer: 0                     # Send PROXY protocol version, 0 for disable
       RedisConfig:
-        Enable: false         # Enable the global ip limit of a user
-        Network: tcp          # Redis protocol, tcp or unix
-        Addr: 127.0.0.1:6379  # Redis server address, or unix socket path
-        Username:             # Redis username
-        Password:             # Redis password
-        DB: 0                 # Redis DB
-        Timeout: 10           # Timeout for redis request
+        Enable: false                             # Enable the global ip limit of a user
+        Network: tcp                              # Redis protocol, tcp or unix
+        Addr: 127.0.0.1:6379                      # Redis server address, or unix socket path
+        Username:                                 # Redis username
+        Password:                                 # Redis password
+        DB: 0                                     # Redis DB
+        Timeout: 10                               # Timeout for redis request

@@ -39,8 +39,7 @@ type ReverbConfig struct {
     Enable    bool   	`mapstructure:"Enable"`
     Host      string 	`mapstructure:"Host"`      
     AppKey    string 	`mapstructure:"AppKey"`   
-	AppSecret string 	`mapstructure:"AppSecret"` 
-    Channel   string 	`mapstructure:"Channel"`   
+	AppSecret string 	`mapstructure:"AppSecret"`   
     UseTLS    bool   	`mapstructure:"UseTLS"` 
 }
 

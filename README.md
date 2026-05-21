@@ -14,14 +14,14 @@ bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install
 ### /etc/XMRay/config.yml
 ```
 Log:
-  Level: none # Log level: none, error, warning, info, debug 
-  AccessPath: # /etc/XMRay/access.Log
-  ErrorPath: # /etc/XMRay/error.log
-  DNSLog: false  # / true or false Whether to enable DNS query log, for example: DOH//doh.server got answer: domain.com -> [ip1, ip2] 2.333ms 
-  MaskAddress: half # half, full, quater
-DnsConfigPath:  /etc/XMRay/dns.json   #https://xtls.github.io/config/dns.html
-RouteConfigPath: # /etc/XMRay/route.json   #https://xtls.github.io/config/routing.html
-OutboundConfigPath: # /etc/XMRay/outbound.json   #https://xtls.github.io/config/outbound.html
+  Level: none 										# Log level: none, error, warning, info, debug 
+  AccessPath: 										#/etc/XMRay/access.Log
+  ErrorPath: 										#/etc/XMRay/error.log
+  DNSLog: false  									# true or false Whether to enable DNS query log
+  MaskAddress: half 								# half, full, quater
+DnsConfigPath:  								    #/etc/XMRay/dns.json - #https://xtls.github.io/config/dns.html
+RouteConfigPath: 									#/etc/XMRay/route.json - #https://xtls.github.io/config/routing.html
+OutboundConfigPath: 								#/etc/XMRay/outbound.json - #https://xtls.github.io/config/outbound.html
 ConnectionConfig:
   Handshake: 8 
   ConnIdle: 120 
@@ -29,12 +29,11 @@ ConnectionConfig:
   DownlinkOnly: 0 
   BufferSize: 64
 ReverbConfig:
-  - Enable: false             # Enable websocket to trigger real-time subscription and node changes data refetch from panel
-    Host: "api.xyz.com:443"   # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
-    AppKey:                   # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
-    AppSecret:                # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
-    Channel: private-xmplus   # Do not change
-    UseTLS: true              # Set to true if tls enabled for api
+  - Enable: false             						# Enable websocket to trigger real-time subscription and node changes data refetch from panel
+    Host: "api.xyz.com:443"   						# Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
+    AppKey:                   						# REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
+    AppSecret:                						# REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
+    UseTLS: true              						# Set to true if tls enabled for api
 Nodes:
   -
     ApiConfig:
@@ -43,8 +42,8 @@ Nodes:
       NodeID: 1
       Timeout: 30 
     ControllerConfig:
-      EnableDNS: true # Use custom DNS config, Please ensure that you set the dns.json well
-      DNSStrategy: AsIs # AsIs, UseIP, UseIPv4, UseIPv6
+      EnableDNS: true 								# Use custom DNS config, Please ensure that you set the dns.json well
+      DNSStrategy: AsIs 							# AsIs, UseIP, UseIPv4, UseIPv6
       CertConfig:
         Email: author@cert.xyz                    	# Required when Cert Mode is not none
         CertFile: /etc/XMRay/node1.crt  			# Required when Cert Mode is file
@@ -53,21 +52,21 @@ Nodes:
         CertEnv:                                    # Required when Cert Mode is dns
           CLOUDFLARE_EMAIL:                         # Required when Cert Mode is dns
           CLOUDFLARE_API_KEY:                       # Required when Cert Mode is dns
-      EnableFallback: false # Only support for Trojan and Vless
-      FallBackConfigs:  # Support multiple fallbacks
-        - SNI: # TLS SNI(Server Name Indication), Empty for any
-          Alpn: # Alpn, Empty for any
-          Path: # HTTP PATH, Empty for any
-          Dest: 80 # Required, Destination of fallback, check https://xtls.github.io/config/features/fallback.html for details.
-          ProxyProtocolVer: 0 # Send PROXY protocol version, 0 for disable
+      EnableFallback: false 						# Only support for Trojan and Vless
+      FallBackConfigs:  							# Support multiple fallbacks
+        - SNI: 										# TLS SNI(Server Name Indication), Empty for any
+          Alpn: 									# Alpn, Empty for any
+          Path: 									# HTTP PATH, Empty for any
+          Dest: 80 									# Required, Destination of fallback, check https://xtls.github.io/config/features/fallback.html for details.
+          ProxyProtocolVer: 0 						# Send PROXY protocol version, 0 for disable
       RedisConfig:
-        Enable: false # Enable the global ip limit of a user
-        Network: tcp # Redis protocol, tcp or unix
-        Addr: 127.0.0.1:6379 # Redis server address, or unix socket path
-        Username: # Redis username
-        Password: # Redis password
-        DB: 0 # Redis DB
-        Timeout: 10 # Timeout for redis request
+        Enable: false 								# Enable the global ip limit of a user
+        Network: tcp 								# Redis protocol, tcp or unix
+        Addr: 127.0.0.1:6379 						# Redis server address, or unix socket path
+        Username: 									# Redis username
+        Password: 									# Redis password
+        DB: 0 										# Redis DB
+        Timeout: 10 								# Timeout for redis request
 ```
 
 ## XMPlus Panel Server configuration
