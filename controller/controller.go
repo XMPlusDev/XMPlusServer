@@ -361,15 +361,22 @@ func (c *Controller) apiMonitor() (err error) {
 		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
 			log.Printf("%s Controller APIMonitor AddNewSubscription: %v", c.LogPrefix, err)
 		}
-			
-		if err := c.nodeManager.AddInboundLimiter(
-			c.Tag,
-			newNodeInfo.UpdateTime,
-			newNodeInfo.SpeedLimit,
-			newSubscriptionInfo,
-			c.config.RedisConfig,
-		); err != nil {
-			log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
+
+		if oldTag != c.Tag {
+			if err := c.nodeManager.DeleteInboundLimiter(oldTag); err != nil {
+				log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
+				return nil
+			}
+
+			if err := c.nodeManager.AddInboundLimiter(
+				c.Tag,
+				newNodeInfo.UpdateTime,
+				newNodeInfo.SpeedLimit,
+				newSubscriptionInfo,
+				c.config.RedisConfig,
+			); err != nil {
+				log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
+			}
 		}
 			
 		newInterval := c.pollInterval()

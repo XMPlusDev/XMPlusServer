@@ -102,7 +102,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -140,7 +141,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -173,7 +175,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -210,7 +213,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -243,7 +247,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -282,7 +287,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -312,7 +318,8 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
@@ -341,12 +348,15 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr"
+    "tcpCongestion": "bbr",
+	"interface": "wg0"
   }
 }
 ```
 
 ### Mask Settings
+
+[FinalMask](https://xtls.github.io/config/transports/finalmask.html)
 
 `maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
 
@@ -405,6 +415,7 @@ Nodes:
   }
 }
 ```
+[quicParams](https://xtls.github.io/config/transports/finalmask.html#quicparams)
 
 `quicParams` fields:
 
@@ -425,6 +436,31 @@ Nodes:
 | `keepAlivePeriod` | int64 | Keep-alive period in seconds |
 | `disablePathMTUDiscovery` | bool | Disable path MTU discovery |
 | `maxIncomingStreams` | int64 | Max number of incoming streams |
+
+
+```
+"finalRules" :[
+	{
+	  "action": "block",
+	  "network": "tcp,udp",
+	  "port": "53,443",
+	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
+	  "blockDelay": "30-90"
+	}
+  ]
+```
+
+`finalRules` fields:
+
+| Field | Type | Description |
+|---|---|---|
+| `action` | string | Action to take when the rule matches. `"allow"` permits the connection, `"block"` drops it |
+| `network` | string | Comma-separated network types to match, e.g. `"tcp"`, `"udp"`, `"tcp,udp"` |
+| `port` | string | Port or port range to match, e.g. `"53"`, `"443"`, `"8080-9000"`, `"53,443,8080-9000"` |
+| `ip` | array | List of IP CIDRs or geo tags to match, e.g. `"10.0.0.0/8"`, `"geoip:cn"` |
+| `blockDelay` | string | When `action` is `"block"`, adds a random delay (ms) before dropping, e.g. `"30-90"`. Omit or leave empty for immediate drop |
+
+[FinalRule](https://xtls.github.io/config/outbounds/freedom.html#finalruleobject)
 
 ### Security Settings
 
@@ -455,7 +491,16 @@ Nodes:
         }
       }
     ]
-  }
+  },
+  "finalRules": [
+	{
+	  "action": "block",
+	  "network": "tcp,udp",
+	  "port": "53,443",
+	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
+	  "blockDelay": "30-90"
+	}
+  ]
 }
 ```
 #### REALITY
@@ -487,7 +532,16 @@ Nodes:
         }
       }
     ]
-  }
+  },
+  "finalRules": [
+	{
+	  "action": "block",
+	  "network": "tcp,udp",
+	  "port": "53,443",
+	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
+	  "blockDelay": "30-90"
+	}
+  ]
 }
 ```
 

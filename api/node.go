@@ -131,6 +131,11 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 			return nil, err
 		}
 	}
+	
+	// Parse final rules
+	if finalRules, ok := securityData.CheckGet("finalRules"); ok {
+		c.parseFinalRules(finalRules, nodeInfo)
+	}
 
 	// Parse blocking rules
 	rule, err := s.Rules.MarshalJSON()
@@ -402,6 +407,56 @@ func (c *Client) parseSecuritySettings(securityData *simplejson.Json, nodeInfo *
 	}
 
 	return nil
+}
+
+func (c *Client) parseFinalRules(ruleData *simplejson.Json, nodeInfo *NodeInfo) {
+	finalRulesData, ok := ruleData.CheckGet("finalRules")
+	if !ok {
+		return
+	}
+
+	rulesArray, err := finalRulesData.Array()
+	if err != nil || len(rulesArray) == 0 {
+		return
+	}
+
+	for i := range rulesArray {
+		ruleJson := finalRulesData.GetIndex(i)
+
+		rule := &FinalRuleConfig{}
+
+		if action, err := ruleJson.Get("action").String(); err == nil {
+			rule.Action = action
+		}
+		if rule.Action == "" {
+			continue // action is required
+		}
+
+		if networkArr, err := ruleJson.Get("network").StringArray(); err == nil {
+			rule.Network = networkArr
+		}
+
+		if port, err := ruleJson.Get("port").String(); err == nil {
+			rule.Port = port
+		}
+
+		if ipArr, err := ruleJson.Get("ip").StringArray(); err == nil {
+			rule.IP = ipArr
+		}
+
+		if blockDelay, ok := ruleJson.CheckGet("blockDelay"); ok {
+			from, errFrom := blockDelay.Get("from").Int()
+			to, errTo := blockDelay.Get("to").Int()
+			if errFrom == nil && errTo == nil {
+				rule.BlockDelay = &Int32RangeSettings{
+					From: int32(from),
+					To:   int32(to),
+				}
+			}
+		}
+
+		nodeInfo.FinalRules = append(nodeInfo.FinalRules, rule)
+	}
 }
 
 func (c *Client) parseBlockingRules(ruleData *simplejson.Json, nodeInfo *NodeInfo) {

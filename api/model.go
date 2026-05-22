@@ -177,6 +177,14 @@ type SocketSettings struct {
 	AcceptProxyProtocol  bool
 }
 
+type FinalRuleConfig struct {
+	Action     string              
+	Network    []string          
+	Port       string             
+	IP         []string           
+	BlockDelay *Int32RangeSettings 
+}
+
 type XhttpSettings struct {
 	Host           string
 	Path           string
@@ -255,6 +263,7 @@ type NodeInfo struct {
 	BlockingRules   *BlockingRules
 	MaskSettings    *MaskSettings
 	HysteriaSettings *HysteriaSettings
+	FinalRules       []*FinalRuleConfig 
 }
 
 type RelayNodeInfo struct {

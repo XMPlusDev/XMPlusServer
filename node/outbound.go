@@ -44,12 +44,54 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 		DomainStrategy: domainStrategy,
 	}
 	
+	if nodeInfo.FinalRules != nil {
+		for _, r := range nodeInfo.FinalRules {
+			if r == nil || r.Action == "" {
+				continue
+			}
+
+			rule := &conf.FreedomFinalRuleConfig{
+				Action: r.Action,
+			}
+
+			if len(r.Network) > 0 {
+				nl := make(conf.NetworkList, len(r.Network))
+				for i, n := range r.Network {
+					nl[i] = conf.Network(n)
+				}
+				rule.Network = &nl
+			}
+
+			if r.Port != "" {
+				pl := new(conf.PortList)
+				if err := pl.UnmarshalJSON([]byte(`"` + r.Port + `"`)); err != nil {
+					return nil, fmt.Errorf("OutboundBuilder: invalid finalRule port %q: %w", r.Port, err)
+				}
+				rule.Port = pl
+			}
+
+			if len(r.IP) > 0 {
+				sl := conf.StringList(r.IP)
+				rule.IP = &sl
+			}
+
+			if r.BlockDelay != nil {
+				rule.BlockDelay = &conf.Int32Range{
+					From: r.BlockDelay.From,
+					To:   r.BlockDelay.To,
+				}
+			}
+
+			proxySetting.FinalRules = append(proxySetting.FinalRules, rule)
+		}
+	}
+	
 	var setting json.RawMessage
 	setting, err := json.Marshal(proxySetting)
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy %s config fialed: %s", nodeInfo.NodeType, err)
 	}
-	
+
 	outboundDetourConfig.Settings = &setting
 	return outboundDetourConfig.Build()	
 }
