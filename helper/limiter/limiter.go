@@ -152,8 +152,9 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 			}
 		}
 	} else {
-		return fmt.Errorf("No such limiter: %s found", tag)
+		return fmt.Errorf("No limiter found for tag %s", tag)
 	}
+	
 	return nil
 }
 

@@ -280,7 +280,6 @@ func (c *Controller) apiMonitor() (err error) {
 			newNodeInfo = c.nodeInfo
 		} else {
 			log.Printf("%s Controller APIMonitor GetNodeInfo: %v", c.LogPrefix, err)
-			return nil
 		}
 	}
 
@@ -292,7 +291,6 @@ func (c *Controller) apiMonitor() (err error) {
 			newSubscriptionInfo = c.subscriptionList
 		} else {
 			log.Printf("%s Controller APIMonitor GetSubscriptionList: %v", c.LogPrefix, err)
-			return nil
 		}
 	}
 
@@ -314,7 +312,7 @@ func (c *Controller) apiMonitor() (err error) {
 		newRelayNodeInfo, err := c.client.GetTransitNode()
 		if err != nil {
 			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-			return nil
+			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
 		}
 		c.relaynodeInfo = newRelayNodeInfo
 		c.RelayTag = c.buildRNodeTag()
@@ -332,62 +330,38 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Relay = true
 	}
 
-	if nodeInfoChanged {
-		if !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
-			oldTag := c.Tag
-			if err := c.nodeManager.RemoveTag(oldTag); err != nil {
-				log.Printf("%s Controller APIMonitor RemoveInboindTag: %v", c.LogPrefix, err)
-				return nil
-			}
-			if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
-				log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
-			}
-
-			c.nodeInfo = newNodeInfo
-			c.Tag = c.buildNodeTag()
-
-			if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
-				log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)
-				return nil
-			}
-			if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
-				log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
-				return nil
-			}
-			if err := c.nodeManager.DeleteInboundLimiter(oldTag); err != nil {
-				log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
-				return nil
-			}
-			
-			newInterval := c.pollInterval()
-			if c.currentPollInterval != newInterval {
-				for _, tag := range []string{"node", "subscriptions"} {
-					if t := c.taskManager.GetTask(tag); t != nil {
-						if err := t.RestartWithInterval(newInterval); err != nil {
-							log.Printf("%s Failed to restart %s task: %v", c.LogPrefix, tag, err)
-						} else {
-							log.Printf("%s %s task restarted with interval %v", c.LogPrefix, tag, newInterval)
-						}
-					}
-				}
-
-				c.currentPollInterval = newInterval
-
-				select {
-				case c.intervalChangeCh <- newInterval:
-				default:
-				}
-			}
-		} else {
-			nodeInfoChanged = false
+	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
+		
+		oldTag := c.Tag
+		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
+			log.Printf("%s Controller APIMonitor RemoveInboindTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor RemoveInboindTag: %w", err)
 		}
-	}
+		if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
+			log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
+		}
 
-	if nodeInfoChanged {
-		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
-			log.Print(err)
+		c.nodeInfo = newNodeInfo
+		c.Tag = c.buildNodeTag()
+
+		if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
+			log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)l
+		}
+			
+		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
+			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
+		}
+			
+		if err := c.nodeManager.DeleteInboundLimiter(oldTag); err != nil {
+			log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
 			return nil
 		}
+			
+		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
+			log.Printf("%s Controller APIMonitor AddNewSubscription: %v", c.LogPrefix, err)
+		}
+			
 		if err := c.nodeManager.AddInboundLimiter(
 			c.Tag,
 			newNodeInfo.UpdateTime,
@@ -396,11 +370,30 @@ func (c *Controller) apiMonitor() (err error) {
 			c.config.RedisConfig,
 		); err != nil {
 			log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
-			return nil
 		}
-		
+			
+		newInterval := c.pollInterval()
+		if c.currentPollInterval != newInterval {
+			for _, tag := range []string{"node", "subscriptions"} {
+				if t := c.taskManager.GetTask(tag); t != nil {
+					if err := t.RestartWithInterval(newInterval); err != nil {
+						log.Printf("%s Failed to restart %s task: %v", c.LogPrefix, tag, err)
+					} else {
+						log.Printf("%s %s task restarted with interval %v", c.LogPrefix, tag, newInterval)
+					}
+				}
+			}
+
+			c.currentPollInterval = newInterval
+
+			select {
+			case c.intervalChangeCh <- newInterval:
+			default:
+			}
+		}
+			
 		c.checkAndLogExceeded()
-	} else if subscriptionChanged {
+	}else if subscriptionChanged {
 		deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 
 		if len(deleted) > 0 {
