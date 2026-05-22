@@ -141,8 +141,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -175,8 +174,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -213,8 +211,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -248,7 +245,6 @@ Nodes:
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
     "tcpCongestion": "bbr",
-	"interface": "wg0"
   }
 }
 ```
@@ -287,8 +283,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -318,8 +313,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -348,8 +342,7 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
+    "tcpCongestion": "bbr"
   }
 }
 ```
