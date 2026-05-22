@@ -345,7 +345,7 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Tag = c.buildNodeTag()
 
 		if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
-			log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)l
+			log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)
 		}
 			
 		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
