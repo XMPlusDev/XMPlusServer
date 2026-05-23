@@ -131,11 +131,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 			return nil, err
 		}
 	}
-	
-	// Parse final rules
-	if finalRules, ok := securityData.CheckGet("finalRules"); ok {
-		c.parseFinalRules(finalRules, nodeInfo)
-	}
 
 	// Parse blocking rules
 	rule, err := s.Rules.MarshalJSON()
@@ -194,18 +189,57 @@ func (c *Client) parseNetworkSettings(transportData *simplejson.Json, nodeInfo *
 			Mode: transportSettings.Get("mode").MustString(),
 		}
 
-		// Set defaults first
-		nodeInfo.XhttpSettings.NoSSEHeader = bool(false)
+		// Defaults
+		nodeInfo.XhttpSettings.NoSSEHeader = false
 		nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(1000000)
 		nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(30)
-		nodeInfo.XhttpSettings.XPaddingBytes = "100-100"
+		nodeInfo.XhttpSettings.XPaddingBytes = "100-1000"
 		nodeInfo.XhttpSettings.ScStreamUpServerSecs = "20-80"
 
+		// Overrides from panel
 		nodeInfo.XhttpSettings.NoSSEHeader = transportSettings.Get("noSSEHeader").MustBool()
-		nodeInfo.XhttpSettings.ScMaxEachPostBytes = int32(transportSettings.Get("scMaxEachPostBytes").MustInt())
-		nodeInfo.XhttpSettings.ScMaxBufferedPosts = int64(transportSettings.Get("scMaxBufferedPosts").MustInt())
-		nodeInfo.XhttpSettings.ScStreamUpServerSecs = transportSettings.Get("scStreamUpServerSecs").MustString()
-		nodeInfo.XhttpSettings.XPaddingBytes = transportSettings.Get("xPaddingBytes").MustString()
+		if v := int32(transportSettings.Get("scMaxEachPostBytes").MustInt()); v > 0 {
+			nodeInfo.XhttpSettings.ScMaxEachPostBytes = v
+		}
+		if v := int64(transportSettings.Get("scMaxBufferedPosts").MustInt()); v > 0 {
+			nodeInfo.XhttpSettings.ScMaxBufferedPosts = v
+		}
+		if v := transportSettings.Get("scStreamUpServerSecs").MustString(); v != "" {
+			nodeInfo.XhttpSettings.ScStreamUpServerSecs = v
+		}
+		if v := transportSettings.Get("xPaddingBytes").MustString(); v != "" {
+			nodeInfo.XhttpSettings.XPaddingBytes = v
+		}
+
+		// obfuscation fields
+		nodeInfo.XhttpSettings.XPaddingObfsMode = transportSettings.Get("xPaddingObfsMode").MustBool()
+		if v := transportSettings.Get("xPaddingMethod").MustString(); v != "" {
+			nodeInfo.XhttpSettings.XPaddingMethod = v
+		}
+		if v := transportSettings.Get("xPaddingPlacement").MustString(); v != "" {
+			nodeInfo.XhttpSettings.XPaddingPlacement = v
+		}
+		if v := transportSettings.Get("xPaddingKey").MustString(); v != "" {
+			nodeInfo.XhttpSettings.XPaddingKey = v
+		}
+		if v := transportSettings.Get("xPaddingHeader").MustString(); v != "" {
+			nodeInfo.XhttpSettings.XPaddingHeader = v
+		}
+		if v := transportSettings.Get("uplinkHTTPMethod").MustString(); v != "" {
+			nodeInfo.XhttpSettings.UplinkHTTPMethod = v
+		}
+		if v := transportSettings.Get("sessionPlacement").MustString(); v != "" {
+			nodeInfo.XhttpSettings.SessionPlacement = v
+		}
+		if v := transportSettings.Get("sessionKey").MustString(); v != "" {
+			nodeInfo.XhttpSettings.SessionKey = v
+		}
+		if v := transportSettings.Get("seqPlacement").MustString(); v != "" {
+			nodeInfo.XhttpSettings.SeqPlacement = v
+		}
+		if v := transportSettings.Get("seqKey").MustString(); v != "" {
+			nodeInfo.XhttpSettings.SeqKey = v
+		}
 	}
 	
 	//raw
@@ -405,58 +439,34 @@ func (c *Client) parseSecuritySettings(securityData *simplejson.Json, nodeInfo *
 			nodeInfo.RealitySettings.PrivateKey = privateKey
 		}
 	}
-
-	return nil
-}
-
-func (c *Client) parseFinalRules(ruleData *simplejson.Json, nodeInfo *NodeInfo) {
-	finalRulesData, ok := ruleData.CheckGet("finalRules")
-	if !ok {
-		return
-	}
-
-	rulesArray, err := finalRulesData.Array()
-	if err != nil || len(rulesArray) == 0 {
-		return
-	}
-
-	for i := range rulesArray {
-		ruleJson := finalRulesData.GetIndex(i)
-
-		rule := &FinalRuleConfig{}
-
-		if action, err := ruleJson.Get("action").String(); err == nil {
-			rule.Action = action
-		}
-		if rule.Action == "" {
-			continue // action is required
-		}
-
-		if networkArr, err := ruleJson.Get("network").StringArray(); err == nil {
-			rule.Network = networkArr
-		}
-
-		if port, err := ruleJson.Get("port").String(); err == nil {
-			rule.Port = port
-		}
-
-		if ipArr, err := ruleJson.Get("ip").StringArray(); err == nil {
-			rule.IP = ipArr
-		}
-
-		if blockDelay, ok := ruleJson.CheckGet("blockDelay"); ok {
-			from, errFrom := blockDelay.Get("from").Int()
-			to, errTo := blockDelay.Get("to").Int()
-			if errFrom == nil && errTo == nil {
-				rule.BlockDelay = &Int32RangeSettings{
-					From: int32(from),
-					To:   int32(to),
+	
+	if finalRulesData, ok := securityData.CheckGet("finalRules"); ok {
+		arr, err := finalRulesData.Array()
+		if err == nil {
+			for i := range arr {
+				rule := finalRulesData.GetIndex(i)
+				fr := FinalRuleSettings{}
+				if v, err := rule.Get("action").String(); err == nil {
+					fr.Action = v
 				}
+				if v, err := rule.Get("network").String(); err == nil {
+					fr.Network = v
+				}
+				if v, err := rule.Get("port").String(); err == nil {
+					fr.Port = v
+				}
+				if v, err := rule.Get("ip").StringArray(); err == nil {
+					fr.IP = v
+				}
+				if v, err := rule.Get("blockDelay").String(); err == nil {
+					fr.BlockDelay = v
+				}
+				nodeInfo.FinalRules = append(nodeInfo.FinalRules, fr)
 			}
 		}
-
-		nodeInfo.FinalRules = append(nodeInfo.FinalRules, rule)
 	}
+
+	return nil
 }
 
 func (c *Client) parseBlockingRules(ruleData *simplejson.Json, nodeInfo *NodeInfo) {
@@ -836,29 +846,69 @@ func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeI
 			nodeInfo.RealitySettings.Mldsa65Verify = mldsa65Verify
 		}
 	}
+	
+	if finalRulesData, ok := securityData.CheckGet("finalRules"); ok {
+		arr, err := finalRulesData.Array()
+		if err == nil {
+			for i := range arr {
+				rule := finalRulesData.GetIndex(i)
+				fr := FinalRuleSettings{}
+				if v, err := rule.Get("action").String(); err == nil {
+					fr.Action = v
+				}
+				if v, err := rule.Get("network").String(); err == nil {
+					fr.Network = v
+				}
+				if v, err := rule.Get("port").String(); err == nil {
+					fr.Port = v
+				}
+				if v, err := rule.Get("ip").StringArray(); err == nil {
+					fr.IP = v
+				}
+				if v, err := rule.Get("blockDelay").String(); err == nil {
+					fr.BlockDelay = v
+				}
+				nodeInfo.FinalRules = append(nodeInfo.FinalRules, fr)
+			}
+		}
+	}
 }
 
 func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) error {
-	hasTCP := false
-	hasUDP := false
+	var tcpMasks []MaskEntry
+	var udpMasks []MaskEntry
 	var quicParams *QuicParamsSettings
-	
+
 	*ms = &MaskSettings{}
 
+	// Parse all TCP masks
 	if maskTCP, isOK := maskSettings.CheckGet("tcp"); isOK {
-		maskArray, err := maskTCP.Array()
+		arr, err := maskTCP.Array()
 		if err != nil {
 			return err
 		}
-		hasTCP = len(maskArray) > 0
+		for i := range arr {
+			entry, err := parseSingleMask(maskTCP.GetIndex(i))
+			if err != nil {
+				return fmt.Errorf("tcp mask[%d]: %w", i, err)
+			}
+			tcpMasks = append(tcpMasks, *entry)
+		}
 	}
 
+	// Parse all UDP masks
 	if maskUDP, isOK := maskSettings.CheckGet("udp"); isOK {
-		maskArray, err := maskUDP.Array()
+		arr, err := maskUDP.Array()
 		if err != nil {
 			return err
 		}
-		hasUDP = len(maskArray) > 0
+		for i := range arr {
+			entry, err := parseSingleMask(maskUDP.GetIndex(i))
+			if err != nil {
+				return fmt.Errorf("udp mask[%d]: %w", i, err)
+			}
+			udpMasks = append(udpMasks, *entry)
+		}
 	}
 
 	if qp, isOK := maskSettings.CheckGet("quicParams"); isOK {
@@ -870,30 +920,13 @@ func parseMaskSettingsInto(maskSettings *simplejson.Json, ms **MaskSettings) err
 		(*ms).EnabledQuic = true
 	}
 
-	if !hasTCP && !hasUDP && quicParams == nil {
+	if len(tcpMasks) == 0 && len(udpMasks) == 0 && quicParams == nil {
 		return nil
 	}
 
 	(*ms).Enabled = true
-
-	if hasTCP {
-		firstMask := maskSettings.Get("tcp").GetIndex(0)
-		parsed, err := parseSingleMask(firstMask)
-		if err != nil {
-			return fmt.Errorf("tcp mask: %w", err)
-		}
-		(*ms).TCP = parsed
-	}
-
-	if hasUDP {
-		firstMask := maskSettings.Get("udp").GetIndex(0)
-		parsed, err := parseSingleMask(firstMask)
-		if err != nil {
-			return fmt.Errorf("udp mask: %w", err)
-		}
-		(*ms).UDP = parsed
-	}
-
+	(*ms).TCP = tcpMasks
+	(*ms).UDP = udpMasks
 	(*ms).QuicParams = quicParams
 
 	return nil

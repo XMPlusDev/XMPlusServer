@@ -244,34 +244,37 @@ Nodes:
     "tcpWindowClamp": 0,
     "tcpKeepAliveIdle": 0,
     "tcpMptcp": false,
-    "tcpCongestion": "bbr",
+    "tcpCongestion": "bbr"
   }
 }
 ```
 
 ####  XHTTP
-```
+
+XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink traffic into separate HTTP requests. It supports CDN deployments and padding obfuscation to bypass CDN-level traffic detection.
+
+##### Basic configuration
+
+```json
 {
   "encryption": "none",
   "decryption": "none",
   "cipher": "aes-128-gcm",
   "sniffing": true,
   "listeningIP": "0.0.0.0",
-  "listeningPort": "443-443",
+  "listeningPort": "443",
   "sendThroughIP": "0.0.0.0",
   "transportProtocol": {
     "type": "xhttp",
     "settings": {
       "host": "tld.dev",
-      "mode": "packet-up",
       "path": "/",
+      "mode": "auto",
       "noSSEHeader": false,
       "scMaxBufferedPosts": 30,
       "scMaxEachPostBytes": 1000000,
       "scStreamUpServerSecs": "20-80",
-      "xPaddingBytes": "100-1000",
-      "custom_host": "tld.dev",
-      "extra": {}
+      "xPaddingBytes": "100-1000"
     }
   },
   "socketSettings": {
@@ -287,6 +290,133 @@ Nodes:
   }
 }
 ```
+
+##### `mode` values
+
+| Value | Description |
+|---|---|
+| `auto` | Automatically selects between `packet-up` and `stream-up` based on client capability |
+| `packet-up` | Uplink sent as individual HTTP POST requests. Works with most CDNs |
+| `stream-up` | Uplink streamed over a single long-lived HTTP connection. Higher performance but requires CDN POST streaming support |
+| `stream-one` | Single bidirectional stream. No `downloadSettings` allowed |
+
+##### Core settings
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `host` | string | — | HTTP Host header value |
+| `path` | string | `"/"` | HTTP request path |
+| `mode` | string | `"auto"` | Transport mode — see table above |
+| `noSSEHeader` | bool | `false` | Suppress the `Content-Type: text/event-stream` header on the downlink response |
+| `scMaxEachPostBytes` | int | `1000000` | Max bytes per uplink POST request. Only applies in `packet-up` mode |
+| `scMaxBufferedPosts` | int | `30` | Max number of POST requests buffered server-side before backpressure |
+| `scStreamUpServerSecs` | string | `"20-80"` | Range (seconds) the server keeps a stream-up connection open before rotating. Format: `"min-max"` |
+| `xPaddingBytes` | string | `"100-1000"` | Range of random padding bytes added to requests. Format: `"min-max"` |
+
+---
+
+##### Padding obfuscation (CDN detection bypass)
+
+These fields enable obfuscation of the padding pattern to bypass CDN-level traffic fingerprinting (e.g. blocking of the default `x_padding=XXXX...` query parameter pattern).
+
+> **Important:** All obfuscation fields must match exactly between server and client. Fields are set directly in `settings` on the server side. On the client/relay side XMRay automatically wraps them in the required `extra` block.
+
+```json
+{
+  "transportProtocol": {
+    "type": "xhttp",
+    "settings": {
+      "host": "tld.dev",
+      "path": "/",
+      "mode": "auto",
+      "scStreamUpServerSecs": "20-80",
+      "xPaddingBytes": "100-1000",
+      "xPaddingObfsMode": true,
+      "xPaddingMethod": "tokenish",
+      "xPaddingPlacement": "queryInHeader",
+      "xPaddingKey": "_dc",
+      "xPaddingHeader": "X-Cache",
+      "uplinkHTTPMethod": "POST",
+      "sessionPlacement": "path",
+      "sessionKey": "",
+      "seqPlacement": "path",
+      "seqKey": ""
+    }
+  }
+}
+```
+
+##### Obfuscation fields
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `xPaddingObfsMode` | bool | `false` | Enable padding obfuscation mode. When `true` the padding key, header, and method are customised |
+| `xPaddingMethod` | string | `"repeat-x"` | Padding generation method. `"repeat-x"` repeats the character `X`; `"tokenish"` generates a token-like string of mixed characters that resembles a real CDN cache key or auth token |
+| `xPaddingPlacement` | string | `"queryInHeader"` | Where the padding value is placed in the request — see placement options below |
+| `xPaddingKey` | string | `"x_padding"` | Query parameter name or cookie name used to carry the padding value. Used when `xPaddingPlacement` is `query`, `cookie`, or `queryInHeader` |
+| `xPaddingHeader` | string | `"X-Padding"` | HTTP header name used to carry the padding value. Used when `xPaddingPlacement` is `header` or `queryInHeader` |
+| `uplinkHTTPMethod` | string | `"POST"` | HTTP method for uplink requests. `"PUT"` and `"PATCH"` are often not blocked by CDNs that block `POST`. `"GET"` is only allowed in `packet-up` mode |
+| `sessionPlacement` | string | `"path"` | Where the session ID is placed — see placement options below |
+| `sessionKey` | string | auto | Key name for the session ID when `sessionPlacement` is not `path`. Defaults to `x_session` (query/cookie) or `X-Session` (header) |
+| `seqPlacement` | string | `"path"` | Where the request sequence number is placed — see placement options below |
+| `seqKey` | string | auto | Key name for the sequence number when `seqPlacement` is not `path`. Defaults to `x_seq` (query/cookie) or `X-Seq` (header) |
+
+##### Placement options
+
+| Value | Description |
+|---|---|
+| `queryInHeader` | Padding key sent as a query parameter **and** the padding value sent in a header. Combines both for maximum CDN compatibility |
+| `query` | Sent as a URL query parameter: `?key=value` |
+| `cookie` | Sent as an HTTP `Cookie` header: `Cookie: key=value` |
+| `header` | Sent as a standalone HTTP header: `Key: value` |
+| `path` | (session/seq only) Embedded directly in the URL path |
+
+---
+
+##### Example: CDN obfuscation with custom method and session headers
+
+A configuration that disguises XHTTP traffic as normal CDN cache validation requests:
+
+```json
+{
+  "transportProtocol": {
+    "type": "xhttp",
+    "settings": {
+      "host": "tld.dev",
+      "path": "/assets/bundle",
+      "mode": "auto",
+      "xPaddingObfsMode": true,
+      "xPaddingMethod": "tokenish",
+      "xPaddingPlacement": "queryInHeader",
+      "xPaddingKey": "_dc",
+      "xPaddingHeader": "X-Cache",
+      "uplinkHTTPMethod": "PUT",
+      "sessionPlacement": "header",
+      "sessionKey": "X-Request-ID",
+      "seqPlacement": "query",
+      "seqKey": "fragment"
+    }
+  }
+}
+```
+
+> `uplinkHTTPMethod: "PUT"` requires `mode: "packet-up"` or `mode: "auto"` (auto will use packet-up). It cannot be used with `stream-up` or `stream-one`.
+
+---
+
+##### Recommended key names for obfuscation
+
+Choose names that blend in with real CDN traffic. Some suggestions:
+
+**For `xPaddingKey` (query/cookie):** `_dc`, `cf`, `t`, `ts`, `bust`, `v`, `rev`, `cb`, `cache_key`
+
+**For `xPaddingHeader` (header):** `X-Cache`, `X-CDN-Geo`, `X-Signature`, `X-Request-ID`, `CF-Cache-Status`
+
+**For `sessionKey`:** `X-Request-ID`, `X-Client-ID`, `X-Auth-Token`, `sid`, `token`, `visitor_id`
+
+**For `seqKey`:** `chunk`, `fragment`, `part`, `segment`, `offset`, `range`
+
+---
 
 ####  KCP
 ```

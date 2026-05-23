@@ -173,41 +173,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				httpupgradeSettings.Host = nodeInfo.HttpSettings.Host
 				httpupgradeSettings.Path = nodeInfo.HttpSettings.Path
 			}
-			streamSetting.HTTPUPGRADESettings = httpupgradeSettings	
-		case "xhttp", "splithttp":
-			if nodeInfo.XhttpSettings == nil {
-				return nil, fmt.Errorf("XhttpSettings is required for xhttp transport")
-			}
-			
-			xhttpSettings := &conf.SplitHTTPConfig{
-				Host: nodeInfo.XhttpSettings.Host,
-				Path: nodeInfo.XhttpSettings.Path,
-				Mode: nodeInfo.XhttpSettings.Mode,
-				NoSSEHeader: nodeInfo.XhttpSettings.NoSSEHeader,
-				ScMaxBufferedPosts: nodeInfo.XhttpSettings.ScMaxBufferedPosts,
-			}
-
-			if(nodeInfo.XhttpSettings.Mode == "packet-up"){
-				scMaxEachPostBytes := conf.Int32Range{
-					From: nodeInfo.XhttpSettings.ScMaxEachPostBytes, 
-					To: nodeInfo.XhttpSettings.ScMaxEachPostBytes,
-				}
-				xhttpSettings.ScMaxEachPostBytes = scMaxEachPostBytes
-			}
-			
-			scStreamUpServerSecs, err := parseInt32Range(nodeInfo.XhttpSettings.ScStreamUpServerSecs, 20, 80)
-			if err != nil {
-				return nil, fmt.Errorf("ScStreamUpServerSecs: %w", err)
-			}
-			xhttpSettings.ScStreamUpServerSecs = scStreamUpServerSecs
-
-			xPaddingBytes, err := parseInt32Range(nodeInfo.XhttpSettings.XPaddingBytes, 100, 100)
-			if err != nil {
-				return nil, fmt.Errorf("XPaddingBytes: %w", err)
-			}
-			xhttpSettings.XPaddingBytes = xPaddingBytes
-			
-			streamSetting.XHTTPSettings = xhttpSettings		
+			streamSetting.HTTPUPGRADESettings = httpupgradeSettings		
 		case "grpc":
 			grpcSettings := &conf.GRPCConfig{}
 			if nodeInfo.GrpcSettings != nil {
@@ -233,6 +199,70 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 			}
 			
 			streamSetting.HysteriaSettings = hysteriaSettings
+		case "xhttp", "splithttp":
+			if nodeInfo.XhttpSettings == nil {
+				return nil, fmt.Errorf("XhttpSettings is required for xhttp transport")
+			}
+
+			xhttpSettings := &conf.SplitHTTPConfig{
+				Host:               nodeInfo.XhttpSettings.Host,
+				Path:               nodeInfo.XhttpSettings.Path,
+				Mode:               nodeInfo.XhttpSettings.Mode,
+				NoSSEHeader:        nodeInfo.XhttpSettings.NoSSEHeader,
+				ScMaxBufferedPosts: nodeInfo.XhttpSettings.ScMaxBufferedPosts,
+			}
+
+			if nodeInfo.XhttpSettings.Mode == "packet-up" {
+				xhttpSettings.ScMaxEachPostBytes = conf.Int32Range{
+					From: nodeInfo.XhttpSettings.ScMaxEachPostBytes,
+					To:   nodeInfo.XhttpSettings.ScMaxEachPostBytes,
+				}
+			}
+
+			scStreamUpServerSecs, err := parseInt32Range(nodeInfo.XhttpSettings.ScStreamUpServerSecs, 20, 80)
+			if err != nil {
+				return nil, fmt.Errorf("ScStreamUpServerSecs: %w", err)
+			}
+			xhttpSettings.ScStreamUpServerSecs = scStreamUpServerSecs
+
+			xPaddingBytes, err := parseInt32Range(nodeInfo.XhttpSettings.XPaddingBytes, 100, 1000)
+			if err != nil {
+				return nil, fmt.Errorf("XPaddingBytes: %w", err)
+			}
+			xhttpSettings.XPaddingBytes = xPaddingBytes
+
+			if nodeInfo.XhttpSettings.XPaddingObfsMode {
+				xhttpSettings.XPaddingObfsMode = true
+				if nodeInfo.XhttpSettings.XPaddingMethod != "" {
+					xhttpSettings.XPaddingMethod = nodeInfo.XhttpSettings.XPaddingMethod
+				}
+				if nodeInfo.XhttpSettings.XPaddingPlacement != "" {
+					xhttpSettings.XPaddingPlacement = nodeInfo.XhttpSettings.XPaddingPlacement
+				}
+				if nodeInfo.XhttpSettings.XPaddingKey != "" {
+					xhttpSettings.XPaddingKey = nodeInfo.XhttpSettings.XPaddingKey
+				}
+				if nodeInfo.XhttpSettings.XPaddingHeader != "" {
+					xhttpSettings.XPaddingHeader = nodeInfo.XhttpSettings.XPaddingHeader
+				}
+				if nodeInfo.XhttpSettings.UplinkHTTPMethod != "" {
+					xhttpSettings.UplinkHTTPMethod = nodeInfo.XhttpSettings.UplinkHTTPMethod
+				}
+				if nodeInfo.XhttpSettings.SessionPlacement != "" {
+					xhttpSettings.SessionPlacement = nodeInfo.XhttpSettings.SessionPlacement
+				}
+				if nodeInfo.XhttpSettings.SessionKey != "" {
+					xhttpSettings.SessionKey = nodeInfo.XhttpSettings.SessionKey
+				}
+				if nodeInfo.XhttpSettings.SeqPlacement != "" {
+					xhttpSettings.SeqPlacement = nodeInfo.XhttpSettings.SeqPlacement
+				}
+				if nodeInfo.XhttpSettings.SeqKey != "" {
+					xhttpSettings.SeqKey = nodeInfo.XhttpSettings.SeqKey
+				}
+			}
+
+			streamSetting.XHTTPSettings = xhttpSettings
 		default:
 			return nil, fmt.Errorf("Unsupported transport protocol: %v", networkType)	
 	}	
@@ -240,20 +270,20 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	if nodeInfo.MaskSettings != nil && nodeInfo.MaskSettings.Enabled {
 		finalMaskSettings := &conf.FinalMask{}
 
-		if nodeInfo.MaskSettings.UDP != nil {
-			udpMask := conf.Mask{Type: nodeInfo.MaskSettings.UDP.Type}
-			if nodeInfo.MaskSettings.UDP.Settings != nil {
-				udpMask.Settings = nodeInfo.MaskSettings.UDP.Settings
+		for _, entry := range nodeInfo.MaskSettings.UDP {
+			udpMask := conf.Mask{Type: entry.Type}
+			if entry.Settings != nil {
+				udpMask.Settings = entry.Settings
 			}
-			finalMaskSettings.Udp = []conf.Mask{udpMask}
+			finalMaskSettings.Udp = append(finalMaskSettings.Udp, udpMask)
 		}
 
-		if nodeInfo.MaskSettings.TCP != nil {
-			tcpMask := conf.Mask{Type: nodeInfo.MaskSettings.TCP.Type}
-			if nodeInfo.MaskSettings.TCP.Settings != nil {
-				tcpMask.Settings = nodeInfo.MaskSettings.TCP.Settings
+		for _, entry := range nodeInfo.MaskSettings.TCP {
+			tcpMask := conf.Mask{Type: entry.Type}
+			if entry.Settings != nil {
+				tcpMask.Settings = entry.Settings
 			}
-			finalMaskSettings.Tcp = []conf.Mask{tcpMask}
+			finalMaskSettings.Tcp = append(finalMaskSettings.Tcp, tcpMask)
 		}
 
 		if nodeInfo.MaskSettings.QuicParams != nil && nodeInfo.MaskSettings.EnabledQuic {

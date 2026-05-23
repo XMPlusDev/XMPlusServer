@@ -7,11 +7,10 @@ import (
 
 const (
 	SubscriptionNotModified = "subscriptions not modified"
-	NodeNotModified = "node not modified"
-	RuleNotModified = "rules not modified"
+	NodeNotModified         = "node not modified"
+	RuleNotModified         = "rules not modified"
 )
 
-// Config API config
 type Config struct {
 	APIHost string `mapstructure:"ApiHost"`
 	NodeID  int    `mapstructure:"NodeID"`
@@ -29,29 +28,29 @@ type PostData struct {
 }
 
 type serverConfig struct {
-	server          `json:"server"`
-	transitServer   `json:"transit_server"`
-	UpdateInterval   int `json:"update_interval"`
-	Version   	     int 	 `json:"api_version"`
+	server        `json:"server"`
+	transitServer `json:"transit_server"`
+	UpdateInterval int `json:"update_interval"`
+	Version        int `json:"api_version"`
 }
 
 type server struct {
-	Type        string `json:"type"`
-	IP          string `json:"ip"`
-	RelayNodeId int    `json:"transit_server_id"`
-	RelayType   int    `json:"transit_server_type"`
-	ServerKey   string `json:"server_key"`
-	Speedlimit  int    `json:"speed_limit"`
+	Type             string           `json:"type"`
+	IP               string           `json:"ip"`
+	RelayNodeId      int              `json:"transit_server_id"`
+	RelayType        int              `json:"transit_server_type"`
+	ServerKey        string           `json:"server_key"`
+	Speedlimit       int              `json:"speed_limit"`
 	NetworkSettings  *json.RawMessage `json:"transportSettings"`
 	SecuritySettings *json.RawMessage `json:"securitySettings"`
 	Rules            *json.RawMessage `json:"rules"`
 }
 
 type transitServer struct {
-	RType        string `json:"type"`
-	NodeId       int    `json:"server_id"`
-	RAddress     string `json:"address"`
-	RServerKey   string `json:"server_key"`
+	RType             string           `json:"type"`
+	NodeId            int              `json:"server_id"`
+	RAddress          string           `json:"address"`
+	RServerKey        string           `json:"server_key"`
 	RNetworkSettings  *json.RawMessage `json:"transportSettings"`
 	RSecuritySettings *json.RawMessage `json:"securitySettings"`
 }
@@ -61,75 +60,75 @@ type SubscriptionResponse struct {
 }
 
 type Traffic struct {
-	Id  int   `json:"subscription_id"`
+	Id       int   `json:"subscription_id"`
 	Upload   int64 `json:"u"`
-	Download   int64 `json:"d"`
+	Download int64 `json:"d"`
 }
 
 type AliveIP struct {
 	Id int    `json:"subscription_id"`
-	IP  string `json:"ip"`
+	IP string `json:"ip"`
 }
 
 type Subscription struct {
-	Id         int    `json:"id"`
-	Email      string `json:"email"`
-	Passwd     string `json:"passwd"`
-	Speedlimit int    `json:"speed_limit"`
-	Iplimit    int    `json:"ip_limit"`
-	TrafficLimit int64  `json:"traffic_limit"` 
-	UsedTraffic  int64  `json:"used_traffic"` 
+	Id           int    `json:"id"`
+	Email        string `json:"email"`
+	Passwd       string `json:"passwd"`
+	Speedlimit   int    `json:"speed_limit"`
+	Iplimit      int    `json:"ip_limit"`
+	TrafficLimit int64  `json:"traffic_limit"`
+	UsedTraffic  int64  `json:"used_traffic"`
 }
 
 type BlockingRules struct {
-	Domain      []string
-	IP          []string
-	Port        string
-	Protocol    []string
+	Domain   []string
+	IP       []string
+	Port     string
+	Protocol []string
 }
 
 type TlsSettings struct {
-	CertMode           string
-	CertDomainName     string
-	ServerName         string 
-	FingerPrint    	   string  
-	CurvePreferences   []string 
-	RejectUnknownSni   bool 
-	VerifyPeerCertByName string 
-	Alpn               []string
-	AllowInsecure      bool
+	CertMode             string
+	CertDomainName       string
+	ServerName           string
+	FingerPrint          string
+	CurvePreferences     []string
+	RejectUnknownSni     bool
+	VerifyPeerCertByName string
+	Alpn                 []string
+	AllowInsecure        bool
 
-	ECHServerKeys      string  
-	ECHConfigList      string  
+	ECHServerKeys        string
+	ECHConfigList        string
 	PinnedPeerCertSha256 string
 }
 
 type RealitySettings struct {
-	Dest              json.RawMessage
-	Show              bool 
-	MinClientVer      string 
-	MaxClientVer      string 
-	MaxTimeDiff       uint64 
-	Xver              uint64  
-	ServerNames       []string 
-	ShortIds          []string 
-	Mldsa65Seed       string
-	PrivateKey        string
-	
-	ShortId           string
-	SpiderX           string
-	ServerName        string
-	Fingerprint       string
-	PublicKey         string
-	Mldsa65Verify     string
+	Dest         json.RawMessage
+	Show         bool
+	MinClientVer string
+	MaxClientVer string
+	MaxTimeDiff  uint64
+	Xver         uint64
+	ServerNames  []string
+	ShortIds     []string
+	Mldsa65Seed  string
+	PrivateKey   string
+
+	ShortId       string
+	SpiderX       string
+	ServerName    string
+	Fingerprint   string
+	PublicKey     string
+	Mldsa65Verify string
 }
 
 type MaskSettings struct {
-	Enabled    		bool
-	EnabledQuic     bool
-	TCP        		*MaskEntry
-	UDP        		*MaskEntry
-	QuicParams 		*QuicParamsSettings
+	Enabled     bool
+	EnabledQuic bool
+	TCP         []MaskEntry         // slice — supports multiple TCP masks
+	UDP         []MaskEntry         // slice — supports multiple UDP masks
+	QuicParams  *QuicParamsSettings
 }
 
 type MaskEntry struct {
@@ -150,9 +149,9 @@ type UdpHopSettings struct {
 type QuicParamsSettings struct {
 	Congestion                  string
 	Debug                       bool
-	BbrProfile                  string  
-	BrutalUp                    string 
-	BrutalDown                  string 
+	BbrProfile                  string
+	BrutalUp                    string
+	BrutalDown                  string
 	UdpHop                      *UdpHopSettings
 	InitStreamReceiveWindow     uint64
 	MaxStreamReceiveWindow      uint64
@@ -165,10 +164,10 @@ type QuicParamsSettings struct {
 }
 
 type SocketSettings struct {
-	TCPKeepAliveInterval int32 
-	TCPKeepAliveIdle     int32 
-	TCPUserTimeout       int32 
-	TCPMaxSeg            int32 
+	TCPKeepAliveInterval int32
+	TCPKeepAliveIdle     int32
+	TCPUserTimeout       int32
+	TCPMaxSeg            int32
 	TcpMptcp             bool
 	TCPWindowClamp       int32
 	DomainStrategy       string
@@ -177,23 +176,34 @@ type SocketSettings struct {
 	AcceptProxyProtocol  bool
 }
 
-type FinalRuleConfig struct {
-	Action     string              
-	Network    []string          
-	Port       string             
-	IP         []string           
-	BlockDelay *Int32RangeSettings 
+type XhttpSettings struct {
+	Host                 string
+	Path                 string
+	Mode                 string
+	NoSSEHeader          bool
+	ScMaxEachPostBytes   int32
+	ScStreamUpServerSecs string
+	ScMaxBufferedPosts   int64
+	XPaddingBytes        string
+
+	XPaddingObfsMode  bool
+	XPaddingMethod    string
+	XPaddingPlacement string
+	XPaddingKey       string
+	XPaddingHeader    string
+	UplinkHTTPMethod  string
+	SessionPlacement  string
+	SessionKey        string
+	SeqPlacement      string
+	SeqKey            string
 }
 
-type XhttpSettings struct {
-	Host           string
-	Path           string
-	Mode           string
-	NoSSEHeader    bool
-	ScMaxEachPostBytes  int32
-	ScStreamUpServerSecs  string
-	ScMaxBufferedPosts  int64
-	XPaddingBytes     string
+type FinalRuleSettings struct {
+	Action     string
+	Network    string
+	Port       string
+	IP         []string
+	BlockDelay string
 }
 
 type RawSettings struct {
@@ -216,78 +226,79 @@ type HttpSettings struct {
 }
 
 type GrpcSettings struct {
-	ServiceName    string
-	Authority      string
-	UserAgent      string
-	WindowsSize    int32
-	IdleTimeout    int32
-	HealthCheckTimeout int32
+	ServiceName         string
+	Authority           string
+	UserAgent           string
+	WindowsSize         int32
+	IdleTimeout         int32
+	HealthCheckTimeout  int32
 	PermitWithoutStream bool
 }
 
 type KcpSettings struct {
-	Mtu           uint32
+	Mtu uint32
 }
 
 type HysteriaSettings struct {
-	Version    int32
+	Version int32
 }
 
 type NodeInfo struct {
-	NodeType        string
-	NodeID          int
-	RelayNodeID     int
-	RelayType       int
-	SpeedLimit      uint64
-	UpdateTime      int
-	Sniffing        bool
-	ListeningIP     string
-	ListeningPort   string
-	SendThroughIP   string
-	Cipher          string
-	Flow            string
-	ServerKey       string
-	Decryption      string
-	SecurityType    string
-	NetworkType     string
-	KcpSettings     *KcpSettings
-	GrpcSettings    *GrpcSettings
-	RawSettings     *RawSettings
-	HttpSettings    *HttpSettings
-	WsSettings      *WsSettings
-	XhttpSettings   *XhttpSettings
-	SocketSettings  *SocketSettings
-	RealitySettings *RealitySettings
-	TlsSettings     *TlsSettings
-	RelayNodeInfo   *RelayNodeInfo
-	BlockingRules   *BlockingRules
-	MaskSettings    *MaskSettings
+	NodeType         string
+	NodeID           int
+	RelayNodeID      int
+	RelayType        int
+	SpeedLimit       uint64
+	UpdateTime       int
+	Sniffing         bool
+	ListeningIP      string
+	ListeningPort    string
+	SendThroughIP    string
+	Cipher           string
+	Flow             string
+	ServerKey        string
+	Decryption       string
+	SecurityType     string
+	NetworkType      string
+	KcpSettings      *KcpSettings
+	GrpcSettings     *GrpcSettings
+	RawSettings      *RawSettings
+	HttpSettings     *HttpSettings
+	WsSettings       *WsSettings
+	XhttpSettings    *XhttpSettings
+	SocketSettings   *SocketSettings
+	RealitySettings  *RealitySettings
+	TlsSettings      *TlsSettings
+	RelayNodeInfo    *RelayNodeInfo
+	BlockingRules    *BlockingRules
+	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
-	FinalRules       []*FinalRuleConfig 
+	FinalRules      []FinalRuleSettings
 }
 
 type RelayNodeInfo struct {
-	NodeType        string
-	NodeID          int
-	Address         string
-	ListeningPort   uint16
-	SendThroughIP   string
-	SecurityType    string
-	NetworkType     string
-	Cipher          string
-	Flow            string
-	ServerKey       string
-	Encryption      string
-	KcpSettings     *KcpSettings
-	GrpcSettings    *GrpcSettings
-	RawSettings     *RawSettings
-	HttpSettings    *HttpSettings
-	WsSettings      *WsSettings
-	XhttpSettings   *XhttpSettings
-	RealitySettings *RealitySettings
-	TlsSettings     *TlsSettings
-	MaskSettings    *MaskSettings
+	NodeType         string
+	NodeID           int
+	Address          string
+	ListeningPort    uint16
+	SendThroughIP    string
+	SecurityType     string
+	NetworkType      string
+	Cipher           string
+	Flow             string
+	ServerKey        string
+	Encryption       string
+	KcpSettings      *KcpSettings
+	GrpcSettings     *GrpcSettings
+	RawSettings      *RawSettings
+	HttpSettings     *HttpSettings
+	WsSettings       *WsSettings
+	XhttpSettings    *XhttpSettings
+	RealitySettings  *RealitySettings
+	TlsSettings      *TlsSettings
+	MaskSettings     *MaskSettings
 	HysteriaSettings *HysteriaSettings
+	FinalRules       []FinalRuleSettings
 }
 
 type SubscriptionInfo struct {
@@ -296,17 +307,17 @@ type SubscriptionInfo struct {
 	Passwd       string
 	SpeedLimit   uint64
 	IPLimit      int
-	TrafficLimit int64 
-	UsedTraffic  int64 
+	TrafficLimit int64
+	UsedTraffic  int64
 }
 
 type OnlineIP struct {
-	Id  int
-	IP  string
+	Id int
+	IP string
 }
 
 type SubscriptionTraffic struct {
-	Id  int
+	Id       int
 	Upload   int64
-	Download   int64
+	Download int64
 }
