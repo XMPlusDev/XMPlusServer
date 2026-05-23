@@ -560,7 +560,7 @@ show_menu() {
  ${green}24.${plain} Generate self-signed TLS certificates for testing and production use
  "
     show_status
-    echo && read -p "Please enter selection [0-13]: " num
+    echo && read -p "Please enter selection [0-24]: " num
 
     case "${num}" in
         0) config
