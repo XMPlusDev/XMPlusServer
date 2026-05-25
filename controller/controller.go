@@ -331,6 +331,7 @@ func (c *Controller) apiMonitor() (err error) {
 	}
 
 	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
+		c.LogPrefix = c.logPrefix()
 		
 		oldTag := c.Tag
 		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
