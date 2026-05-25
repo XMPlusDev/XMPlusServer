@@ -325,15 +325,6 @@ func (c *Controller) apiMonitor() (err error) {
 		c.nodeInfo = newNodeInfo
 		c.Tag = c.buildNodeTag()
 		c.LogPrefix = c.logPrefix()
-			
-		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
-			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
-		}
-
-		if err := c.nodeManager.AddBlackHoleRuleTag(newNodeInfo, c.Tag); err != nil {
-			log.Printf("%s Controller APIMonitor AddBlackHoleRuleTag: %v", c.LogPrefix, err)
-		}
 		
 		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 {
 			newRelayNodeInfo, err := c.client.GetTransitNode()
@@ -354,6 +345,15 @@ func (c *Controller) apiMonitor() (err error) {
 				return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
 			}
 			c.Relay = true
+		}
+			
+		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
+			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
+		}
+
+		if err := c.nodeManager.AddBlackHoleRuleTag(newNodeInfo, c.Tag); err != nil {
+			log.Printf("%s Controller APIMonitor AddBlackHoleRuleTag: %v", c.LogPrefix, err)
 		}
 			
 		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
