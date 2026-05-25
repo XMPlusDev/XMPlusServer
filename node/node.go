@@ -174,7 +174,7 @@ func (m *Manager) RemoveBlockingRules(tag string) error {
 	return nil
 }
 
-func (m *Manager) AddRuleTag(nodeInfo *api.NodeInfo, tag string) error {
+func (m *Manager) AddBlackHoleRuleTag(nodeInfo *api.NodeInfo, tag string) error {
 	blackholeConfig, err := BlackholeOutboundBuilder(tag)
 	if err != nil {
 		return fmt.Errorf("failed to build outbound config: %w", err)
@@ -183,7 +183,7 @@ func (m *Manager) AddRuleTag(nodeInfo *api.NodeInfo, tag string) error {
 		return fmt.Errorf("failed to add outbound: %w", err)
 	}
 
-	routerConfig, err := RouterBuilder(nodeInfo, tag)
+	routerConfig, err := BlackHoleRouterBuilder(nodeInfo, tag)
 	if err != nil {
 		return err
 	}

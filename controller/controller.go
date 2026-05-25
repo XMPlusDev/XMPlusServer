@@ -200,6 +200,8 @@ func (c *Controller) Close() error {
 	log.Printf("%s Closing %d task schedulers", c.logPrefix(), c.taskManager.Count())
 
 	c.triggerCancel()
+	
+	c.nodeManager.DeleteInboundLimiter(c.Tag);
 
 	return c.taskManager.CloseAll()
 }
@@ -280,6 +282,7 @@ func (c *Controller) apiMonitor() (err error) {
 			newNodeInfo = c.nodeInfo
 		} else {
 			log.Printf("%s Controller APIMonitor GetNodeInfo: %v", c.LogPrefix, err)
+			return fmt.Errorf("%s Controller APIMonitor GetNodeInfo: %v", c.LogPrefix, err)
 		}
 	}
 
@@ -291,6 +294,7 @@ func (c *Controller) apiMonitor() (err error) {
 			newSubscriptionInfo = c.subscriptionList
 		} else {
 			log.Printf("%s Controller APIMonitor GetSubscriptionList: %v", c.LogPrefix, err)
+			return fmt.Errorf("%s Controller APIMonitor GetSubscriptionList: %v", c.LogPrefix, err)
 		}
 	}
 
@@ -308,28 +312,6 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Relay = false
 	}
 
-	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
-		newRelayNodeInfo, err := c.client.GetTransitNode()
-		if err != nil {
-			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
-		}
-		c.relaynodeInfo = newRelayNodeInfo
-		c.RelayTag = c.buildRNodeTag()
-
-		err = c.nodeManager.AddRelayTag(
-			newRelayNodeInfo,
-			c.RelayTag,
-			c.Tag,
-			newSubscriptionInfo,
-		)
-		if err != nil {
-			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-		}
-		c.Relay = true
-	}
-
 	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
 		oldTag := c.Tag
 		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
@@ -343,19 +325,14 @@ func (c *Controller) apiMonitor() (err error) {
 		c.nodeInfo = newNodeInfo
 		c.Tag = c.buildNodeTag()
 		c.LogPrefix = c.logPrefix()
-
-		if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
-			log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)
-		}
 			
 		if err := c.nodeManager.AddTag(newNodeInfo, c.Tag, c.config); err != nil {
 			log.Printf("%s Controller APIMonitor AddInboundTag: %v", c.LogPrefix, err)
 			return fmt.Errorf("Controller APIMonitor AddInboundTag: %w", err)
 		}
-			
-		if err := c.nodeManager.DeleteInboundLimiter(oldTag); err != nil {
-			log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
-			return nil
+
+		if err := c.nodeManager.AddBlackHoleRuleTag(newNodeInfo, c.Tag); err != nil {
+			log.Printf("%s Controller APIMonitor AddBlackHoleRuleTag: %v", c.LogPrefix, err)
 		}
 			
 		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
@@ -376,6 +353,24 @@ func (c *Controller) apiMonitor() (err error) {
 				c.config.RedisConfig,
 			); err != nil {
 				log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
+			}
+		}else{
+			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
+			if len(deleted) > 0 {
+				deletedEmail := subscription.FormatEmails(deleted, oldTag)
+				c.nodeManager.DeleteSubscriptionBuckets(oldTag, deletedEmail)
+			}
+			if len(added) > 0 {
+				if err := c.nodeManager.UpdateInboundLimiter(oldTag, &added); err != nil {
+					log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
+				}
+			}
+			if len(modified) > 0 {
+				deletedEmail := subscription.FormatEmails(modified, oldTag)
+				c.nodeManager.DeleteSubscriptionBuckets(oldTag, deletedEmail)
+				if err := c.nodeManager.UpdateInboundLimiter(oldTag, &modified); err != nil {
+					log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
+				}
 			}
 		}
 			
@@ -444,6 +439,29 @@ func (c *Controller) apiMonitor() (err error) {
 	}
 
 	c.subscriptionList = newSubscriptionInfo
+	
+	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
+		newRelayNodeInfo, err := c.client.GetTransitNode()
+		if err != nil {
+			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+		}
+		c.relaynodeInfo = newRelayNodeInfo
+		c.RelayTag = c.buildRNodeTag()
+
+		err = c.nodeManager.AddRelayTag(
+			newRelayNodeInfo,
+			c.RelayTag,
+			c.Tag,
+			newSubscriptionInfo,
+		)
+		if err != nil {
+			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
+		}
+		c.Relay = true
+	}
+	
 	return nil
 }
 

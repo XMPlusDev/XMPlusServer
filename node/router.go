@@ -52,21 +52,16 @@ func DefaultRouterBuilder(tag string) (*router.Config, error) {
 	
 	InboundTag := conf.StringList{tag}
 	
-	// Add default rule to route all other traffic to the main outbound
-	// IMPORTANT: Only match traffic from this inbound to avoid interfering with relay user-specific rules
-	//network := conf.NetworkList([]conf.Network{"tcp", "udp"})
 	defaultRule := struct {
 		Type        string            `json:"type"`
 		RuleTag     string            `json:"ruleTag"`
 		InboundTag  *conf.StringList `json:"inboundTag"`
 		OutboundTag string            `json:"outboundTag"`
-		//Network     *conf.NetworkList `json:"network,omitempty"`
 	}{
 		Type:        "field",
 		RuleTag:     fmt.Sprintf("%s_default", tag),
 		InboundTag:  &InboundTag,
 		OutboundTag: tag,
-		//Network:     &network,
 	}
 		
 	rule, err := json.Marshal(defaultRule)
@@ -80,7 +75,7 @@ func DefaultRouterBuilder(tag string) (*router.Config, error) {
 	return routerConfig.Build()
 }
 
-func RouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config, error) {
+func BlackHoleRouterBuilder(nodeInfo *api.NodeInfo, tag string) (*router.Config, error) {
 	// Add nil check
 	if nodeInfo == nil {
 		return nil, fmt.Errorf("nodeInfo is nil")
