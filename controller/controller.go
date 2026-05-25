@@ -331,8 +331,6 @@ func (c *Controller) apiMonitor() (err error) {
 	}
 
 	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
-		c.LogPrefix = c.logPrefix()
-		
 		oldTag := c.Tag
 		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
 			log.Printf("%s Controller APIMonitor RemoveInboindTag: %v", c.LogPrefix, err)
@@ -344,6 +342,7 @@ func (c *Controller) apiMonitor() (err error) {
 
 		c.nodeInfo = newNodeInfo
 		c.Tag = c.buildNodeTag()
+		c.LogPrefix = c.logPrefix()
 
 		if err := c.nodeManager.AddRuleTag(newNodeInfo, c.Tag); err != nil {
 			log.Printf("%s Controller APIMonitor AddRoutingRuleTag: %v", c.LogPrefix, err)
