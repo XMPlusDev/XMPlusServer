@@ -129,7 +129,7 @@ func (c *Controller) Start() error {
 		c.Relay = true
 	}
 
-	err = c.nodeManager.AddRuleTag(c.nodeInfo, c.Tag)
+	err = c.nodeManager.AddBlackHoleRuleTag(c.nodeInfo, c.Tag)
 	if err != nil {
 		log.Panic(err)
 		return err
