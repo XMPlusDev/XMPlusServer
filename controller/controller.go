@@ -312,28 +312,6 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Relay = false
 	}
 	
-	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
-		newRelayNodeInfo, err := c.client.GetTransitNode()
-		if err != nil {
-			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
-		}
-		c.relaynodeInfo = newRelayNodeInfo
-		c.RelayTag = c.buildRNodeTag()
-
-		err = c.nodeManager.AddRelayTag(
-			newRelayNodeInfo,
-			c.RelayTag,
-			c.Tag,
-			newSubscriptionInfo,
-		)
-		if err != nil {
-			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-		}
-		c.Relay = true
-	}
-
 	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
 		oldTag := c.Tag
 		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
@@ -355,6 +333,27 @@ func (c *Controller) apiMonitor() (err error) {
 
 		if err := c.nodeManager.AddBlackHoleRuleTag(newNodeInfo, c.Tag); err != nil {
 			log.Printf("%s Controller APIMonitor AddBlackHoleRuleTag: %v", c.LogPrefix, err)
+		}
+		
+		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 {
+			newRelayNodeInfo, err := c.client.GetTransitNode()
+			if err != nil {
+				log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
+				return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+			}
+			c.relaynodeInfo = newRelayNodeInfo
+			c.RelayTag = c.buildRNodeTag()
+
+			if err := c.nodeManager.AddRelayTag(
+				newRelayNodeInfo,
+				c.RelayTag,
+				c.Tag,
+				newSubscriptionInfo,
+			); err != nil {
+				log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+				return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
+			}
+			c.Relay = true
 		}
 			
 		if err := c.subManager.AddNewSubscription(newSubscriptionInfo, newNodeInfo, c.Tag); err != nil {
@@ -418,6 +417,27 @@ func (c *Controller) apiMonitor() (err error) {
 			
 		c.checkAndLogExceeded()
 	}else if subscriptionChanged {
+		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && !c.Relay {
+			newRelayNodeInfo, err := c.client.GetTransitNode()
+			if err != nil {
+				log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
+				return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+			}
+			c.relaynodeInfo = newRelayNodeInfo
+			c.RelayTag = c.buildRNodeTag()
+
+			if err := c.nodeManager.AddRelayTag(
+				newRelayNodeInfo,
+				c.RelayTag,
+				c.Tag,
+				newSubscriptionInfo,
+			); err != nil {
+				log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+				return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
+			}
+			c.Relay = true
+		}
+		
 		deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 
 		if len(deleted) > 0 {
