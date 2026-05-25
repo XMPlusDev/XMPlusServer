@@ -102,14 +102,6 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	if err := c.parseNetworkSettings(transportData, nodeInfo); err != nil {
 		return nil, err
 	}
-
-	// Parse socket settings
-	if socketSettings, ok := transportData.CheckGet("socketSettings"); ok {
-		if err := c.parseSocketSettings(socketSettings, nodeInfo); err != nil {
-			return nil, err
-		}
-	}
-
 	// Parse security settings
 	security, err := s.SecuritySettings.MarshalJSON()
 	if err != nil {
@@ -128,6 +120,13 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	// Parse mask settings
 	if maskSettings, ok := securityData.CheckGet("maskSettings"); ok {
 		if err := c.parseMaskSettings(maskSettings, nodeInfo); err != nil {
+			return nil, err
+		}
+	}
+	
+	// Parse socket settings
+	if socketSettings, ok := securityData.CheckGet("socketSettings"); ok {
+		if err := c.parseSocketSettings(socketSettings, nodeInfo); err != nil {
 			return nil, err
 		}
 	}
@@ -319,37 +318,57 @@ func (c *Client) parseMaskSettings(maskSettings *simplejson.Json, nodeInfo *Node
 }
 
 func (c *Client) parseSocketSettings(socketSettings *simplejson.Json, nodeInfo *NodeInfo) error {
-	nodeInfo.SocketSettings = &SocketSettings{}
-	nodeInfo.SocketSettings.Enabled = true
-	
-	if acceptProxy, protocolExists := socketSettings.CheckGet("acceptProxyProtocol"); protocolExists {
-		nodeInfo.SocketSettings.AcceptProxyProtocol = acceptProxy.MustBool()
-	}
+	nodeInfo.SocketSettings = &SocketSettings{Enabled: true}
+	s := nodeInfo.SocketSettings
 
-	if val, err := socketSettings.Get("tCPKeepAliveInterval").Int(); err == nil {
-		nodeInfo.SocketSettings.TCPKeepAliveInterval = int32(val)
+	if v, err := socketSettings.Get("acceptProxyProtocol").Bool(); err == nil {
+		s.AcceptProxyProtocol = v
 	}
-	if val, err := socketSettings.Get("tCPKeepAliveIdle").Int(); err == nil {
-		nodeInfo.SocketSettings.TCPKeepAliveIdle = int32(val)
+	if v, err := socketSettings.Get("domainStrategy").String(); err == nil {
+		s.DomainStrategy = v
 	}
-	if val, err := socketSettings.Get("tCPUserTimeout").Int(); err == nil {
-		nodeInfo.SocketSettings.TCPUserTimeout = int32(val)
+	if v, err := socketSettings.Get("tcpKeepAliveInterval").Int(); err == nil {
+		s.TCPKeepAliveInterval = int32(v)
 	}
-	if val, err := socketSettings.Get("tCPMaxSeg").Int(); err == nil {
-		nodeInfo.SocketSettings.TCPMaxSeg = int32(val)
+	if v, err := socketSettings.Get("tcpKeepAliveIdle").Int(); err == nil {
+		s.TCPKeepAliveIdle = int32(v)
 	}
-	if val, err := socketSettings.Get("tCPWindowClamp").Int(); err == nil {
-		nodeInfo.SocketSettings.TCPWindowClamp = int32(val)
+	if v, err := socketSettings.Get("tcpUserTimeout").Int(); err == nil {
+		s.TCPUserTimeout = int32(v)
 	}
-	if val, err := socketSettings.Get("tcpMptcp").Bool(); err == nil {
-		nodeInfo.SocketSettings.TcpMptcp = val
+	if v, err := socketSettings.Get("tcpMaxSeg").Int(); err == nil {
+		s.TCPMaxSeg = int32(v)
 	}
-	if val, err := socketSettings.Get("domainStrategy").String(); err == nil {
-		nodeInfo.SocketSettings.DomainStrategy = val
+	if v, err := socketSettings.Get("tcpWindowClamp").Int(); err == nil {
+		s.TCPWindowClamp = int32(v)
 	}
-	
-	if val, err := socketSettings.Get("tcpCongestion").String(); err == nil {
-		nodeInfo.SocketSettings.TcpCongestion = val
+	if v, err := socketSettings.Get("tcpMptcp").Bool(); err == nil {
+		s.TcpMptcp = v
+	}
+	if v, err := socketSettings.Get("tcpCongestion").String(); err == nil {
+		s.TcpCongestion = v
+	}
+	if v, err := socketSettings.Get("interface").String(); err == nil {
+		s.Interface = v
+	}
+	if v, err := socketSettings.Get("v6only").Bool(); err == nil {
+		s.V6only = v
+	}
+	if v, err := socketSettings.Get("dialerProxy").String(); err == nil {
+		s.DialerProxy = v
+	}
+	if v, err := socketSettings.Get("trustedXForwardedFor").StringArray(); err == nil {
+		s.TrustedXForwardedFor = v
+	}
+	// TFO: panel sends true/false/int — read as interface{} via raw JSON
+	if tfoData, ok := socketSettings.CheckGet("tcpFastOpen"); ok {
+		raw, err := tfoData.MarshalJSON()
+		if err == nil {
+			var tfo interface{}
+			if jsonErr := json.Unmarshal(raw, &tfo); jsonErr == nil {
+				s.TFO = tfo
+			}
+		}
 	}
 
 	return nil
@@ -552,6 +571,12 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 		return nil, err
 	}
 	
+	if socketSettings, ok := securityData.CheckGet("socketSettings"); ok {
+		if err := c.parseRelaySocketSettings(socketSettings, nodeInfo); err != nil {
+			return nil, err
+		}
+	}
+	
 	// Parse mask settings
 	if maskSettings, ok := securityData.CheckGet("maskSettings"); ok {
 		if err := c.parseRelayMaskSettings(maskSettings, nodeInfo); err != nil {
@@ -562,6 +587,64 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	c.parseRelaySecuritySettings(securityData, nodeInfo)
 
 	return nodeInfo, nil
+}
+
+func (c *Client) parseRelaySocketSettings(socketSettings *simplejson.Json, nodeInfo *RelayNodeInfo) error {
+
+	nodeInfo.SocketSettings = &SocketSettings{Enabled: true}
+	s := nodeInfo.SocketSettings
+
+	if v, err := socketSettings.Get("acceptProxyProtocol").Bool(); err == nil {
+		s.AcceptProxyProtocol = v
+	}
+	if v, err := socketSettings.Get("domainStrategy").String(); err == nil {
+		s.DomainStrategy = v
+	}
+	if v, err := socketSettings.Get("tcpKeepAliveInterval").Int(); err == nil {
+		s.TCPKeepAliveInterval = int32(v)
+	}
+	if v, err := socketSettings.Get("tcpKeepAliveIdle").Int(); err == nil {
+		s.TCPKeepAliveIdle = int32(v)
+	}
+	if v, err := socketSettings.Get("tcpUserTimeout").Int(); err == nil {
+		s.TCPUserTimeout = int32(v)
+	}
+	if v, err := socketSettings.Get("tcpMaxSeg").Int(); err == nil {
+		s.TCPMaxSeg = int32(v)
+	}
+	if v, err := socketSettings.Get("tcpWindowClamp").Int(); err == nil {
+		s.TCPWindowClamp = int32(v)
+	}
+	if v, err := socketSettings.Get("tcpMptcp").Bool(); err == nil {
+		s.TcpMptcp = v
+	}
+	if v, err := socketSettings.Get("tcpCongestion").String(); err == nil {
+		s.TcpCongestion = v
+	}
+	if v, err := socketSettings.Get("interface").String(); err == nil {
+		s.Interface = v
+	}
+	if v, err := socketSettings.Get("v6only").Bool(); err == nil {
+		s.V6only = v
+	}
+	if v, err := socketSettings.Get("dialerProxy").String(); err == nil {
+		s.DialerProxy = v
+	}
+	if v, err := socketSettings.Get("trustedXForwardedFor").StringArray(); err == nil {
+		s.TrustedXForwardedFor = v
+	}
+	// TFO: panel sends true/false/int — read as interface{} via raw JSON
+	if tfoData, ok := socketSettings.CheckGet("tcpFastOpen"); ok {
+		raw, err := tfoData.MarshalJSON()
+		if err == nil {
+			var tfo interface{}
+			if jsonErr := json.Unmarshal(raw, &tfo); jsonErr == nil {
+				s.TFO = tfo
+			}
+		}
+	}
+	
+    return nil
 }
 
 func selectSinglePort(portString string) (uint32, error) {

@@ -322,3 +322,58 @@ func buildQuicParams(q *api.QuicParamsSettings) *conf.QuicParamsConfig {
 
 	return qp
 }
+
+
+
+func buildSocketConfig(s *api.SocketSettings, isInbound bool) *conf.SocketConfig {
+    sc := &conf.SocketConfig{}
+
+    // AcceptProxyProtocol is only meaningful on TCP-based inbound transports.
+    // It must NOT be set on kcp/hysteria (UDP) or grpc (uses HTTP/2 framing).
+    if isInbound && s.AcceptProxyProtocol {
+        sc.AcceptProxyProtocol = true
+    }
+
+    if s.DomainStrategy != "" {
+        sc.DomainStrategy = s.DomainStrategy
+    }
+    if s.TCPKeepAliveInterval != 0 {
+        sc.TCPKeepAliveInterval = s.TCPKeepAliveInterval
+    }
+    if s.TCPKeepAliveIdle != 0 {
+        sc.TCPKeepAliveIdle = s.TCPKeepAliveIdle
+    }
+    if s.TCPUserTimeout != 0 {
+        sc.TCPUserTimeout = s.TCPUserTimeout
+    }
+    if s.TCPMaxSeg != 0 {
+        sc.TCPMaxSeg = s.TCPMaxSeg
+    }
+    if s.TCPWindowClamp != 0 {
+        sc.TCPWindowClamp = s.TCPWindowClamp
+    }
+    if s.TcpMptcp {
+        sc.TcpMptcp = true
+    }
+    if s.TcpCongestion != "" {
+        sc.TCPCongestion = s.TcpCongestion
+    }
+    if s.Interface != "" {
+        sc.Interface = s.Interface
+    }
+    if s.V6only {
+        sc.V6only = true
+    }
+    if s.DialerProxy != "" {
+        sc.DialerProxy = s.DialerProxy
+    }
+    if s.TFO != nil {
+        sc.TFO = s.TFO
+    }
+    // TrustedXForwardedFor is inbound-only
+    if isInbound && len(s.TrustedXForwardedFor) > 0 {
+        sc.TrustedXForwardedFor = s.TrustedXForwardedFor
+    }
+
+    return sc
+}

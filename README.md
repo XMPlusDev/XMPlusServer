@@ -29,10 +29,10 @@ ConnectionConfig:
   DownlinkOnly: 0 
   BufferSize: 64
 ReverbConfig:
-  - Enable: false             						# Enable websocket to trigger real-time subscription and node changes data refetch from panel
-    Host: "api.xyz.com:443"   						# Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
-    AppKey:                   						# REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
-    AppSecret:                						# REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
+  - Enable: false             						# Enable websocket to trigger real-time subscription and node updates from panel
+    Host: "api.xyz.com:443"   						# Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMPlusPanel/.env 
+    AppKey:                   						# REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
+    AppSecret:                						# REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env
     UseTLS: true              						# Set to true if tls enabled for api
 Nodes:
   -
@@ -52,12 +52,12 @@ Nodes:
         CertEnv:                                    # Required when Cert Mode is dns
           CLOUDFLARE_EMAIL:                         # Required when Cert Mode is dns
           CLOUDFLARE_API_KEY:                       # Required when Cert Mode is dns
-      EnableFallback: false 						# Only support for Trojan and Vless
+      EnableFallback: false 						# Only support for Trojan and Vlesshttps://xtls.github.io/config/features/fallback.html
       FallBackConfigs:  							# Support multiple fallbacks
         - SNI: 										# TLS SNI(Server Name Indication), Empty for any
           Alpn: 									# Alpn, Empty for any
           Path: 									# HTTP PATH, Empty for any
-          Dest: 80 									# Required, Destination of fallback, check https://xtls.github.io/config/features/fallback.html for details.
+          Dest: 80 									# Required, Destination of fallback.
           ProxyProtocolVer: 0 						# Send PROXY protocol version, 0 for disable
       RedisConfig:
         Enable: false 								# Enable the global ip limit of a user
@@ -92,18 +92,6 @@ Nodes:
         "type": "none"
       }
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr",
-	"interface": "wg0"
   }
 }
 ```
@@ -131,17 +119,6 @@ Nodes:
         }
       }
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -164,17 +141,6 @@ Nodes:
       "heartbeat": 60,
       "custom_host": "tld.dev"
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -201,17 +167,6 @@ Nodes:
       "health_check_timeout": 0,
       "permit_without_stream": false
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -234,17 +189,6 @@ Nodes:
       "path": "/",
       "custom_host": "tld.dev"
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -276,17 +220,6 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
       "scStreamUpServerSecs": "20-80",
       "xPaddingBytes": "100-1000"
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -433,17 +366,6 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "settings": {
       "mtu": 1350
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -462,17 +384,6 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "settings": {
       "version": 2
     }
-  },
-  "socketSettings": {
-    "acceptProxyProtocol": false,
-    "domainStrategy": "asis",
-    "tcpKeepAliveInterval": 0,
-    "tcpUserTimeout": 0,
-    "tcpMaxSeg": 0,
-    "tcpWindowClamp": 0,
-    "tcpKeepAliveIdle": 0,
-    "tcpMptcp": false,
-    "tcpCongestion": "bbr"
   }
 }
 ```
@@ -561,6 +472,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 | `maxIncomingStreams` | int64 | Max number of incoming streams |
 
 
+#### Final Rule Settings (`finalRule`)
+[FinalRule](https://xtls.github.io/config/outbounds/freedom.html#finalruleobject)
 ```
 "finalRules" :[
 	{
@@ -583,7 +496,75 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 | `ip` | array | List of IP CIDRs or geo tags to match, e.g. `"10.0.0.0/8"`, `"geoip:cn"` |
 | `blockDelay` | string | When `action` is `"block"`, adds a random delay (ms) before dropping, e.g. `"30-90"`. Omit or leave empty for immediate drop |
 
-[FinalRule](https://xtls.github.io/config/outbounds/freedom.html#finalruleobject)
+
+
+#### Socket Settings (`socketSettings`)
+[Sockopt](https://xtls.github.io/config/transports/sockopt.html)
+
+Socket-level options applied to the underlying TCP/UDP socket. Configured in the panel under `transportSettings.socketSettings`. All fields are optional — omitting a field leaves Xray's default in place.
+
+```json
+{
+  "socketSettings": {
+    "acceptProxyProtocol": false,
+    "domainStrategy": "AsIs",
+    "tcpFastOpen": false,
+    "tcpKeepAliveInterval": 0,
+    "tcpKeepAliveIdle": 0,
+    "tcpUserTimeout": 0,
+    "tcpMaxSeg": 0,
+    "tcpWindowClamp": 0,
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr",
+    "interface": "",
+    "v6only": false,
+    "dialerProxy": "",
+    "trustedXForwardedFor": []
+  }
+}
+```
+
+##### Field reference
+
+| Field | Type | Default | Scope | Description |
+|---|---|---|---|---|
+| `acceptProxyProtocol` | bool | `false` | Inbound | Accept PROXY protocol v1/v2 from an upstream load balancer or reverse proxy (e.g. Nginx, HAProxy). The real client IP is read from the PROXY header. Only valid on TCP-based transports (`tcp`, `ws`, `httpupgrade`). |
+| `domainStrategy` | string | `"AsIs"` | Both | DNS resolution strategy for outbound connections. See strategies table below. |
+| `tcpFastOpen` | bool \| int | `false` | Both | Enable TCP Fast Open (TFO). `true` uses the OS default queue size. An integer explicitly sets the queue size (e.g. `256`). Reduces latency on reconnect by sending data in the SYN packet. Requires kernel ≥ 3.7 (Linux) or Windows 10 1607+. |
+| `tcpKeepAliveInterval` | int | `0` | Both | Interval in seconds between TCP keep-alive probes after the idle period expires. `0` uses the OS default. Keeps long-lived connections alive through NAT/firewall state tables. |
+| `tcpKeepAliveIdle` | int | `0` | Both | Seconds of inactivity before the first keep-alive probe is sent. `0` uses the OS default (typically 7200s on Linux). Lower values detect dead connections faster. |
+| `tcpUserTimeout` | int | `0` | Both | Milliseconds the kernel waits for unacknowledged data before aborting the connection (`TCP_USER_TIMEOUT`). `0` uses the OS default. Useful for detecting broken connections faster than keep-alive alone. |
+| `tcpMaxSeg` | int | `0` | Both | Maximum TCP segment size (MSS) in bytes (`TCP_MAXSEG`). `0` uses the OS default. Reduce below 1460 when using tunnels (e.g. VPN/WireGuard) to avoid fragmentation. |
+| `tcpWindowClamp` | int | `0` | Both | Clamp the TCP receive window to this size in bytes (`TCP_WINDOW_CLAMP`). `0` disables clamping. Rarely needed; useful in constrained-bandwidth environments. |
+| `tcpMptcp` | bool | `false` | Both | Enable Multipath TCP (MPTCP). Allows a connection to use multiple network paths simultaneously for throughput and resilience. Requires kernel ≥ 5.6 (Linux) with MPTCP compiled in. |
+| `tcpCongestion` | string | `""` | Both | TCP congestion control algorithm. Common values: `"bbr"`, `"cubic"`, `"reno"`. Empty string leaves the system default. `bbr` is recommended for high-latency or lossy links. Requires the algorithm to be loaded in the kernel (`modprobe tcp_bbr`). |
+| `interface` | string | `""` | Both | Bind the socket to a specific network interface by name (e.g. `"eth0"`, `"wg0"`). Useful for multi-homed servers or policy routing. Empty string binds to the default interface. |
+| `v6only` | bool | `false` | Both | When `true`, an IPv6 listening socket (`::`) will not accept IPv4-mapped connections (`IPV6_V6ONLY`). Only relevant when `listeningIP` is `"::"` or `"0.0.0.0"` is absent. |
+| `dialerProxy` | string | `""` | Outbound | Tag of another outbound to use as the underlying transport for this connection. Allows chaining outbounds (e.g. route relay traffic through a SOCKS5 outbound). Empty string disables proxying. |
+| `trustedXForwardedFor` | string[] | `[]` | Inbound | List of trusted upstream IP CIDRs or addresses whose `X-Forwarded-For` header is trusted for real-client-IP extraction (e.g. `["127.0.0.1", "10.0.0.0/8"]`). Only applies to HTTP-based inbound transports (`ws`, `httpupgrade`, `xhttp`). Empty list disables trusted forwarding. |
+
+##### `domainStrategy` values
+
+| Value | Description |
+|---|---|
+| `"AsIs"` | Use the domain name as-is; let the OS resolve it. Default. |
+| `"UseIP"` | Resolve the domain to IP before connecting, using Xray's internal DNS. |
+| `"UseIPv4"` | Resolve and force an IPv4 address. |
+| `"UseIPv6"` | Resolve and force an IPv6 address. |
+| `"UseIPv4v6"` | Resolve and prefer IPv4, fall back to IPv6. |
+| `"UseIPv6v4"` | Resolve and prefer IPv6, fall back to IPv4. |
+
+##### Notes
+
+**`acceptProxyProtocol` vs `trustedXForwardedFor`** — these serve different purposes. `acceptProxyProtocol` reads the real IP from a binary PROXY protocol header injected at the TCP layer (Nginx `proxy_protocol on`). `trustedXForwardedFor` reads it from an HTTP header injected at the application layer (Nginx `proxy_set_header X-Forwarded-For`). Use the one that matches your reverse proxy configuration.
+
+**`tcpKeepAliveInterval` and `tcpKeepAliveIdle`** — both must be set together for keep-alive to behave predictably. Setting only `tcpKeepAliveInterval` without `tcpKeepAliveIdle` may have no effect on some kernels.
+
+**`tcpFastOpen`** — must be enabled on both client and server sides to take effect. Also requires the server OS to have `net.ipv4.tcp_fastopen` set to `3` (`sysctl -w net.ipv4.tcp_fastopen=3`).
+
+**`interface`** — the named interface must exist at the time the node starts. If the interface goes down and comes back up, existing connections are not migrated; new connections will bind correctly on reconnect.
+
+**`dialerProxy`** — the referenced outbound tag must exist in the Xray config. Circular references (A → B → A) will cause a connection loop.
 
 ### Security Settings
 
@@ -604,6 +585,22 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "pinnedPeerCertSha256": "",
     "echServerKeys": "",
     "echConfigList": ""
+  },
+  "socketSettings": {
+    "acceptProxyProtocol": false,
+    "domainStrategy": "AsIs",
+    "tcpFastOpen": false,
+    "tcpKeepAliveInterval": 0,
+    "tcpKeepAliveIdle": 0,
+    "tcpUserTimeout": 0,
+    "tcpMaxSeg": 0,
+    "tcpWindowClamp": 0,
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr",
+    "interface": "",
+    "v6only": false,
+    "dialerProxy": "",
+    "trustedXForwardedFor": []
   },
   "maskSettings": {
     "udp": [
@@ -645,6 +642,22 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "minClientVer": "",
     "maxClientVer": "",
     "maxTimeDiff": 0
+  },
+  "socketSettings": {
+    "acceptProxyProtocol": false,
+    "domainStrategy": "AsIs",
+    "tcpFastOpen": false,
+    "tcpKeepAliveInterval": 0,
+    "tcpKeepAliveIdle": 0,
+    "tcpUserTimeout": 0,
+    "tcpMaxSeg": 0,
+    "tcpWindowClamp": 0,
+    "tcpMptcp": false,
+    "tcpCongestion": "bbr",
+    "interface": "",
+    "v6only": false,
+    "dialerProxy": "",
+    "trustedXForwardedFor": []
   },
   "maskSettings": {
     "udp": [

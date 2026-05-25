@@ -5,9 +5,9 @@ import (
 	"fmt"
 	"strings"
 
+	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/infra/conf"
-	"github.com/xtls/xray-core/common/net"
 
 	"github.com/xmplusdev/xmray/api"
 )
@@ -28,12 +28,10 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 		outboundDetourConfig.SendThrough = &nodeInfo.SendThroughIP
 	}
 
-	var domainStrategy = "Asis"
+	domainStrategy := "Asis"
 	if config.EnableDNS {
 		if config.DNSStrategy != "" {
 			domainStrategy = config.DNSStrategy
-		} else {
-			domainStrategy = "Asis"
 		}
 	}
 
@@ -41,7 +39,6 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 		DomainStrategy: domainStrategy,
 	}
 
-	// Apply finalRules from panel securitySettings
 	for _, fr := range nodeInfo.FinalRules {
 		rule := buildFinalRule(fr)
 		if rule != nil {
@@ -49,20 +46,42 @@ func OutboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.
 		}
 	}
 
-	var setting json.RawMessage
-	setting, err := json.Marshal(proxySetting)
+	settingBytes, err := json.Marshal(proxySetting)
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy %s config failed: %s", nodeInfo.NodeType, err)
 	}
-
+	setting := json.RawMessage(settingBytes)
 	outboundDetourConfig.Settings = &setting
+
+	if nodeInfo.SocketSettings != nil && nodeInfo.SocketSettings.Enabled {
+		outboundDetourConfig.StreamSetting = buildSocketOnlyStream(nodeInfo.SocketSettings)
+	}
+
 	return outboundDetourConfig.Build()
+}
+
+func buildSocketOnlyStream(s *api.SocketSettings) *conf.StreamConfig {
+	return &conf.StreamConfig{
+		SocketSettings: buildSocketConfig(s, false),
+	}
 }
 
 func BlackholeOutboundBuilder(tag string) (*core.OutboundHandlerConfig, error) {
 	outboundDetourConfig := &conf.OutboundDetourConfig{}
 	outboundDetourConfig.Protocol = "blackhole"
 	outboundDetourConfig.Tag = fmt.Sprintf("%s_blackhole", tag)
+
+	blackholeSetting := &conf.BlackholeConfig{
+		Response: json.RawMessage(`{"type":"http"}`),
+	}
+
+	settingBytes, err := json.Marshal(blackholeSetting)
+	if err != nil {
+		return nil, fmt.Errorf("marshal blackhole config failed: %s", err)
+	}
+	setting := json.RawMessage(settingBytes)
+	outboundDetourConfig.Settings = &setting
+
 	return outboundDetourConfig.Build()
 }
 
@@ -79,7 +98,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 	var (
 		protocol      string
 		streamSetting *conf.StreamConfig
-		setting       json.RawMessage
 	)
 
 	var proxySetting any
@@ -91,14 +109,13 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		if err != nil {
 			return nil, fmt.Errorf("Marshal Vless User config failed: %s", err)
 		}
-		User := []json.RawMessage{vUser}
 		proxySetting = struct {
 			Vnext []*conf.VLessOutboundVnext `json:"vnext"`
 		}{
 			Vnext: []*conf.VLessOutboundVnext{{
 				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
 				Port:    uint16(nodeInfo.ListeningPort),
-				Users:   User,
+				Users:   []json.RawMessage{vUser},
 			}},
 		}
 	case "vmess":
@@ -107,14 +124,13 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		if err != nil {
 			return nil, fmt.Errorf("Marshal Vmess User config failed: %s", err)
 		}
-		User := []json.RawMessage{userVmess}
 		proxySetting = struct {
 			Receivers []*conf.VMessOutboundTarget `json:"vnext"`
 		}{
 			Receivers: []*conf.VMessOutboundTarget{{
 				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
 				Port:    uint16(nodeInfo.ListeningPort),
-				Users:   User,
+				Users:   []json.RawMessage{userVmess},
 			}},
 		}
 	case "trojan":
@@ -161,10 +177,11 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		return nil, fmt.Errorf("Unsupported Relay Node Type: %s", nodeInfo.NodeType)
 	}
 
-	setting, err := json.Marshal(proxySetting)
+	settingBytes, err := json.Marshal(proxySetting)
 	if err != nil {
 		return nil, fmt.Errorf("marshal proxy %s config failed: %s", nodeInfo.NodeType, err)
 	}
+	setting := json.RawMessage(settingBytes)
 
 	outboundDetourConfig.Protocol = protocol
 	outboundDetourConfig.Settings = &setting
@@ -296,9 +313,13 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		streamSetting.FinalMask = finalMaskSettings
 	}
 
+	if nodeInfo.SocketSettings != nil && nodeInfo.SocketSettings.Enabled {
+		streamSetting.SocketSettings = buildSocketConfig(nodeInfo.SocketSettings, false)
+	}
+
 	if nodeInfo.SecurityType == "tls" && nodeInfo.TlsSettings != nil {
 		streamSetting.Security = "tls"
-		tlsSettings := &conf.TLSConfig{
+		streamSetting.TLSSettings = &conf.TLSConfig{
 			AllowInsecure:        nodeInfo.TlsSettings.AllowInsecure,
 			ServerName:           nodeInfo.TlsSettings.ServerName,
 			Fingerprint:          nodeInfo.TlsSettings.FingerPrint,
@@ -306,12 +327,11 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			ECHConfigList:        nodeInfo.TlsSettings.ECHConfigList,
 			PinnedPeerCertSha256: nodeInfo.TlsSettings.PinnedPeerCertSha256,
 		}
-		streamSetting.TLSSettings = tlsSettings
 	}
 
 	if nodeInfo.SecurityType == "reality" && nodeInfo.RealitySettings != nil {
 		streamSetting.Security = "reality"
-		realitySettings := &conf.REALITYConfig{
+		streamSetting.REALITYSettings = &conf.REALITYConfig{
 			Show:          nodeInfo.RealitySettings.Show,
 			ServerName:    nodeInfo.RealitySettings.ServerName,
 			PublicKey:     nodeInfo.RealitySettings.PublicKey,
@@ -320,7 +340,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			SpiderX:       nodeInfo.RealitySettings.SpiderX,
 			Mldsa65Verify: nodeInfo.RealitySettings.Mldsa65Verify,
 		}
-		streamSetting.REALITYSettings = realitySettings
 	}
 
 	outboundDetourConfig.Tag = fmt.Sprintf("%s_%d", tag, subscription.Id)
@@ -332,8 +351,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 	return outboundDetourConfig.Build()
 }
 
-// buildFinalRule converts api.FinalRuleSettings into conf.FreedomFinalRuleConfig.
-// Returns nil if Action is empty (invalid/incomplete rule — skip silently).
 func buildFinalRule(fr api.FinalRuleSettings) *conf.FreedomFinalRuleConfig {
 	if fr.Action == "" {
 		return nil
@@ -342,7 +359,6 @@ func buildFinalRule(fr api.FinalRuleSettings) *conf.FreedomFinalRuleConfig {
 		Action: fr.Action,
 	}
 
-	// Network: "tcp", "udp", or "tcp,udp"
 	if fr.Network != "" {
 		nl := conf.NetworkList{}
 		for _, n := range strings.Split(fr.Network, ",") {
@@ -354,7 +370,6 @@ func buildFinalRule(fr api.FinalRuleSettings) *conf.FreedomFinalRuleConfig {
 		rule.Network = &nl
 	}
 
-	// Port: PortList.UnmarshalJSON accepts a quoted string like "53,443,8080-9000"
 	if fr.Port != "" {
 		pl := &conf.PortList{}
 		if err := json.Unmarshal([]byte(`"`+fr.Port+`"`), pl); err == nil {
@@ -362,18 +377,15 @@ func buildFinalRule(fr api.FinalRuleSettings) *conf.FreedomFinalRuleConfig {
 		}
 	}
 
-	// IP: CIDR list or geoip tags, passed to geodata.ParseIPRules by FreedomFinalRuleConfig.Build()
 	if len(fr.IP) > 0 {
 		sl := conf.StringList(fr.IP)
 		rule.IP = &sl
 	}
 
-	// BlockDelay: "30-90" parsed into Int32Range
 	if fr.BlockDelay != "" {
 		from, to, err := conf.ParseRangeString(fr.BlockDelay)
 		if err == nil {
 			r := conf.Int32Range{}
-			// Use Left/Right so ensureOrder() fills From/To correctly on Build
 			r.Left = int32(from)
 			r.Right = int32(to)
 			if r.Left > r.Right {

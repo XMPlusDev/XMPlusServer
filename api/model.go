@@ -164,6 +164,7 @@ type QuicParamsSettings struct {
 }
 
 type SocketSettings struct {
+	Enabled              bool
 	TCPKeepAliveInterval int32
 	TCPKeepAliveIdle     int32
 	TCPUserTimeout       int32
@@ -171,9 +172,13 @@ type SocketSettings struct {
 	TcpMptcp             bool
 	TCPWindowClamp       int32
 	DomainStrategy       string
-	Enabled              bool
 	TcpCongestion        string
 	AcceptProxyProtocol  bool
+	Interface            string
+	V6only               bool
+	TFO                  interface{} 
+	DialerProxy          string
+	TrustedXForwardedFor []string
 }
 
 type XhttpSettings struct {
@@ -294,6 +299,7 @@ type RelayNodeInfo struct {
 	HttpSettings     *HttpSettings
 	WsSettings       *WsSettings
 	XhttpSettings    *XhttpSettings
+	SocketSettings   *SocketSettings
 	RealitySettings  *RealitySettings
 	TlsSettings      *TlsSettings
 	MaskSettings     *MaskSettings

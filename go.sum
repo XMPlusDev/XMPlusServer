@@ -1735,6 +1735,8 @@ github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f h1:iy2JRioxmUpoJ3SzbF
 github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f/go.mod h1:DsJblcWDGt76+FVqBVwbwRhxyyNJsGV48gJLch0OOWI=
 github.com/xtls/xray-core v1.260327.1-0.20260509173629-1bdb488c9ec0 h1:ft6HiTHelF1z9i3zZVPG9Q1LcLcvEB5jzBxky/+wljk=
 github.com/xtls/xray-core v1.260327.1-0.20260509173629-1bdb488c9ec0/go.mod h1:LWadz6mFBKGPHAe0KscKjugHjmQeyDt5Na6J86ol/hY=
+github.com/xtls/xray-core v1.260327.1-0.20260524143512-787aa7677b47 h1:BaWO3q0uXC90dNSIuyC9nti7adlL6NCvNsngfxdj07w=
+github.com/xtls/xray-core v1.260327.1-0.20260524143512-787aa7677b47/go.mod h1:fzWEzIGlgKnC/5a1FZyyaDeK3CVGw4wdZCZRNVv6bFk=
 github.com/yandex-cloud/go-genproto v0.73.0 h1:skB6cTUqgjFULeNWVfwVG9XjnxfgevEIn9PAa7aT5bQ=
 github.com/yandex-cloud/go-genproto v0.73.0/go.mod h1:0LDD/IZLIUIV4iPH+YcF+jysO3jkSvADFGm4dCAuwQo=
 github.com/yandex-cloud/go-sdk/services/dns v0.0.54 h1:I6Y/cTuGgXtfXarHLuHFcIQ4OQcZ0d0tB9jARBEeCjs=
@@ -2600,6 +2602,8 @@ google.golang.org/grpc v1.54.0/go.mod h1:PUSEXI6iWghWaB6lXM4knEgpJNu2qUcKfDtNci3
 google.golang.org/grpc v1.55.0/go.mod h1:iYEXKGkEBhg1PjZQvoYEVPTDkHo1/bjTnfwTeGONTY8=
 google.golang.org/grpc v1.81.0 h1:W3G9N3KQf3BU+YuCtGKJk0CmxQNbAISICD/9AORxLIw=
 google.golang.org/grpc v1.81.0/go.mod h1:xGH9GfzOyMTGIOXBJmXt+BX/V0kcdQbdcuwQ/zNw42I=
+google.golang.org/grpc v1.81.1 h1:VnnIIZ88UzOOKLukQi+ImGz8O1Wdp8nAGGnvOfEIWQQ=
+google.golang.org/grpc v1.81.1/go.mod h1:xGH9GfzOyMTGIOXBJmXt+BX/V0kcdQbdcuwQ/zNw42I=
 google.golang.org/grpc/cmd/protoc-gen-go-grpc v1.1.0/go.mod h1:6Kw0yEErY5E/yWrBtf03jp27GLLJujG4z/JK95pnjjw=
 google.golang.org/protobuf v0.0.0-20200109180630-ec00e32a8dfd/go.mod h1:DFci5gLYBciE7Vtevhsrf46CRTquxDuWsQurQQe4oz8=
 google.golang.org/protobuf v0.0.0-20200221191635-4d8936d0db64/go.mod h1:kwYJMbMJ01Woi6D6+Kah6886xMZcty6N08ah7+eCXa0=

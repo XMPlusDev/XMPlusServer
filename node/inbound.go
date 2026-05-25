@@ -344,42 +344,9 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	}
 
 	if nodeInfo.SocketSettings != nil && nodeInfo.SocketSettings.Enabled {
-		sockoptConfig := &conf.SocketConfig{}
-		
-		if  nodeInfo.SocketSettings.AcceptProxyProtocol {
-			switch 	networkType{
-				case "kcp", "xhttp", "grpc":
-					sockoptConfig.AcceptProxyProtocol = nodeInfo.SocketSettings.AcceptProxyProtocol
-			}
-		}
-		if nodeInfo.SocketSettings.DomainStrategy != "" {
-			sockoptConfig.DomainStrategy = nodeInfo.SocketSettings.DomainStrategy
-		}
-		if nodeInfo.SocketSettings.TCPKeepAliveInterval > 0 {
-			sockoptConfig.TCPKeepAliveInterval = nodeInfo.SocketSettings.TCPKeepAliveInterval
-		}
-		if nodeInfo.SocketSettings.TCPWindowClamp > 0 {
-			sockoptConfig.TCPWindowClamp = nodeInfo.SocketSettings.TCPWindowClamp
-		}
-		if nodeInfo.SocketSettings.TCPMaxSeg > 0 {
-			sockoptConfig.TCPMaxSeg = nodeInfo.SocketSettings.TCPMaxSeg
-		}
-		if nodeInfo.SocketSettings.TCPUserTimeout > 0 {
-			sockoptConfig.TCPUserTimeout = nodeInfo.SocketSettings.TCPUserTimeout
-		}
-		if nodeInfo.SocketSettings.TCPKeepAliveIdle > 0 {
-			sockoptConfig.TCPKeepAliveIdle = nodeInfo.SocketSettings.TCPKeepAliveIdle
-		}
-		if nodeInfo.SocketSettings.TcpMptcp {
-			sockoptConfig.TcpMptcp = nodeInfo.SocketSettings.TcpMptcp
-		}
-		
-		if nodeInfo.SocketSettings.TcpCongestion != "" {
-			sockoptConfig.TCPCongestion = nodeInfo.SocketSettings.TcpCongestion
-		}
-			
+		sockoptConfig := buildSocketConfig(nodeInfo.SocketSettings, true)
 		streamSetting.SocketSettings = sockoptConfig
-	}	
+	}
 	
 	inboundDetourConfig.StreamSetting = streamSetting
 

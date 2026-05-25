@@ -14,10 +14,10 @@ ConnectionConfig:
   DownlinkOnly: 0 
   BufferSize: 64
 ReverbConfig:
-  - Enable: false                                 # Enable websocket to trigger real-time subscription and node changes data refetch from panel
-    Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMplusPanel/.env 
-    AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMplusPanel/.env
-    AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMplusPanel/.env
+  - Enable: false                                 # Enable websocket to trigger real-time subscription and node updates from panel
+    Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMPlusPanel/.env 
+    AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
+    AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env
     UseTLS: true                                  # Set to true if tls enabled for api
 Nodes:
   -
@@ -45,7 +45,7 @@ Nodes:
           Dest: 80                                # Required, Destination of fallback, 
           ProxyProtocolVer: 0                     # Send PROXY protocol version, 0 for disable
       RedisConfig:
-        Enable: false                             # Enable the global ip limit of a user
+        Enable: false                             # Enable the global ip limit
         Network: tcp                              # Redis protocol, tcp or unix
         Addr: 127.0.0.1:6379                      # Redis server address, or unix socket path
         Username:                                 # Redis username
