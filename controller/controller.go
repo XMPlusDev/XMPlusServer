@@ -311,6 +311,28 @@ func (c *Controller) apiMonitor() (err error) {
 		}
 		c.Relay = false
 	}
+	
+	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
+		newRelayNodeInfo, err := c.client.GetTransitNode()
+		if err != nil {
+			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+		}
+		c.relaynodeInfo = newRelayNodeInfo
+		c.RelayTag = c.buildRNodeTag()
+
+		err = c.nodeManager.AddRelayTag(
+			newRelayNodeInfo,
+			c.RelayTag,
+			c.Tag,
+			newSubscriptionInfo,
+		)
+		if err != nil {
+			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
+		}
+		c.Relay = true
+	}
 
 	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
 		oldTag := c.Tag
@@ -440,28 +462,6 @@ func (c *Controller) apiMonitor() (err error) {
 
 	c.subscriptionList = newSubscriptionInfo
 	
-	if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && InfoUpdated {
-		newRelayNodeInfo, err := c.client.GetTransitNode()
-		if err != nil {
-			log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
-		}
-		c.relaynodeInfo = newRelayNodeInfo
-		c.RelayTag = c.buildRNodeTag()
-
-		err = c.nodeManager.AddRelayTag(
-			newRelayNodeInfo,
-			c.RelayTag,
-			c.Tag,
-			newSubscriptionInfo,
-		)
-		if err != nil {
-			log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-			return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-		}
-		c.Relay = true
-	}
-	
 	return nil
 }
 
@@ -506,7 +506,7 @@ func (c *Controller) buildNodeTag() string {
 }
 
 func (c *Controller) buildRNodeTag() string {
-	return fmt.Sprintf("Relay_%s_%s_%d",
+	return fmt.Sprintf("Relay_%s_%d_%d",
 		c.relaynodeInfo.NodeType,
 		c.relaynodeInfo.ListeningPort,
 		c.relaynodeInfo.NodeID)
