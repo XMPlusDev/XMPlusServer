@@ -309,17 +309,15 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 		}
 
 		limit := determineRate(nodeLimit, SpeedLimit)
-		if limit == 0 {
+		if limit > 0 {
+			lim := rate.NewLimiter(rate.Limit(limit), int(limit))
+			if v, loaded := inboundInfo.BucketHub.LoadOrStore(email, lim); loaded {
+				return v.(*rate.Limiter), true, false
+			}
+			return lim, true, false
+		}else{
 			return nil, false, false
 		}
-		if v, ok := inboundInfo.BucketHub.Load(email); ok {
-			return v.(*rate.Limiter), true, false
-		}
-		lim := rate.NewLimiter(rate.Limit(limit), int(limit))
-		if v, loaded := inboundInfo.BucketHub.LoadOrStore(email, lim); loaded {
-			return v.(*rate.Limiter), true, false
-		}
-		return lim, true, false
 	}
 	newError("Get Limiter information failed").AtDebug()
 	return nil, false, false

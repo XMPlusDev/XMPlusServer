@@ -6,7 +6,7 @@ import (
 )
 
 var (
-	version  = `XMRay v2605252`
+	version  = `XMRay v2605270`
 )
 
 func init() {

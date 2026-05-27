@@ -57,7 +57,6 @@ type sessionInfo struct {
 	tag   string
 	email string
 	ip    string
-	level uint32
 }
 
 func RegisterOn(server *core.Instance, lim *limiter.Limiter) (*LimitingDispatcher, error) {
@@ -151,7 +150,6 @@ func resolveUserLimits(sessionInbound *session.Inbound) *sessionInfo {
 		tag:   sessionInbound.Tag,
 		email: user.Email,
 		ip:    sessionInbound.Source.Address.IP().String(),
-		level: user.Level,
 	}
 }
 
