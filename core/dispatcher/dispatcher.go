@@ -227,9 +227,6 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 	if err != nil || sc == nil {
 		return err
 	}
-
-	ctx2, cancel := context.WithCancel(ctx)
-	_ = ctx2
 	
 	tc := ld.getOrCreateCounter(sc.info.tag)
 	storage := tc.GetCounter(sc.info.email)
@@ -237,8 +234,6 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 	link.Writer = &counter.StatWriter{
 		Writer:  link.Writer,
 		Storage: storage,
-		Delta:   func(up, down int64) bool { return ld.limiter.AddDelta(sc.info.tag, sc.info.email, up, down) },
-		Cancel:  cancel,
 	}
 
 	if sc.hasBucket {
@@ -257,30 +252,17 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 		return link, err
 	}
 
-	ctx2, cancel := context.WithCancel(ctx)
-	_ = ctx2
-
 	tc := ld.getOrCreateCounter(sc.info.tag)
 	storage := tc.GetCounter(sc.info.email)
-	
-	delta := func(up, down int64) bool {
-		return ld.limiter.AddDelta(sc.info.tag, sc.info.email, up, down)
-	}
 	
 	link.Writer = &counter.StatWriter{
 		Writer:  link.Writer,
 		Storage: storage,
-		Delta:   delta,
-		Cancel:  cancel,
-		Email:   sc.info.email,
 	}
 
 	link.Reader = &counter.StatReader{
 		Reader:  twr,
 		Storage: storage,
-		Delta:   delta,
-		Cancel:  cancel,
-		Email:   sc.info.email,
 	}
 
 	if sc.hasBucket {
@@ -336,10 +318,6 @@ func (ld *LimitingDispatcher) DrainDeltas(tag string) *limiter.PendingTraffic {
 		return nil
 	}
 	return ld.limiter.DrainDeltas(tag, tc)
-}
-
-func (ld *LimitingDispatcher) CheckTrafficExceeded(tag string) []string {
-	return ld.limiter.CheckTrafficExceeded(tag)
 }
 
 func (ld *LimitingDispatcher) ResetTraffic(pending *limiter.PendingTraffic) {

@@ -415,7 +415,6 @@ func (c *Controller) apiMonitor() (err error) {
 			}
 		}
 			
-		c.checkAndLogExceeded()
 	}else if subscriptionChanged {
 		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && !c.Relay {
 			newRelayNodeInfo, err := c.client.GetTransitNode()
@@ -458,7 +457,6 @@ func (c *Controller) apiMonitor() (err error) {
 				if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &added); err != nil {
 					log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
 				}
-				c.checkAndLogExceeded()
 			}
 		}
 
@@ -475,7 +473,6 @@ func (c *Controller) apiMonitor() (err error) {
 			if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &modified); err != nil {
 				log.Printf("%s Error updating limiter for modified subscriptions: %v", c.LogPrefix, err)
 			}
-			c.checkAndLogExceeded()
 			log.Printf("%s Modified %d subscription(s)", c.LogPrefix, len(modified))
 		}
 	}
@@ -485,12 +482,6 @@ func (c *Controller) apiMonitor() (err error) {
 	return nil
 }
 
-func (c *Controller) checkAndLogExceeded() {
-	exceeded := c.dispatcher.CheckTrafficExceeded(c.Tag)
-	for _, email := range exceeded {
-		log.Printf("%s Traffic quota exhausted, blocking new connections for: %s", c.LogPrefix, email)
-	}
-}
 
 func (c *Controller) certMonitor() error {
 	switch c.nodeInfo.TlsSettings.CertMode {

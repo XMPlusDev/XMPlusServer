@@ -23,14 +23,6 @@ import (
 	"github.com/xmplusdev/xmray/helper/counter"
 )
 
-const (
-	trafficUsedPrefix  = "xmray:traffic:used:"
-    trafficLimitPrefix = "xmray:traffic:limit:"
-)
-
-func trafficUsedKey(uniqueKey string) string { return trafficUsedPrefix + uniqueKey }
-func trafficLimitKey(uniqueKey string) string { return trafficLimitPrefix + uniqueKey }
-
 type SubscriptionInfo struct {
 	Id           int
 	SpeedLimit   uint64
@@ -53,7 +45,6 @@ type InboundInfo struct {
 		globalOnlineIP *marshaler.Marshaler
 		redisClient    *redis.Client
 	}
-	trafficRedis  *redis.Client
 }
 
 type Limiter struct {
@@ -89,9 +80,8 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 		inboundInfo.GlobalIPLimit.redisClient = rc
 		rs := redisStore.NewRedis(rc, store.WithExpiration(time.Duration(expiry)*time.Second))
 		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
-		inboundInfo.trafficRedis = rc
 	} else {
-		fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled; traffic quota check, ip limit requires redis to be enabled", tag)
+		fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled. ip limit requires redis to be enabled", tag)
 	}
 
 	subscriptionMap := new(sync.Map)
@@ -102,14 +92,6 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 			SpeedLimit:   u.SpeedLimit,
 			IPLimit:      u.IPLimit,
 		})
-		
-		if inboundInfo.trafficRedis != nil && u.TrafficLimit > 0 {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			uniqueKey := strings.TrimPrefix(key, tag+"_")
-			inboundInfo.trafficRedis.SetNX(ctx, trafficUsedKey(uniqueKey),  u.UsedTraffic,  0)
-			inboundInfo.trafficRedis.SetNX(ctx, trafficLimitKey(uniqueKey), u.TrafficLimit, 0)
-			cancel()
-		}
 	}
 	inboundInfo.SubscriptionInfo = subscriptionMap
 	l.InboundInfo.Store(tag, inboundInfo)
@@ -120,8 +102,8 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 	if value, ok := l.InboundInfo.Load(tag); ok {
 		inboundInfo := value.(*InboundInfo)
 		
-		if inboundInfo.trafficRedis == nil || inboundInfo.GlobalIPLimit.config == nil || !inboundInfo.GlobalIPLimit.config.Enable {
-			fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled; traffic quota check, ip limit requires redis to be enabled", tag)
+		if inboundInfo.GlobalIPLimit.config == nil || !inboundInfo.GlobalIPLimit.config.Enable {
+			fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled. ip limit requires redis to be enabled", tag)
 		}
 		
 		for _, u := range *updatedServiceList {
@@ -132,14 +114,6 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 				IPLimit:      u.IPLimit,
 			})
 			
-			if inboundInfo.trafficRedis != nil && u.TrafficLimit > 0 {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				uniqueKey := strings.TrimPrefix(key, tag+"_")
-				//inboundInfo.trafficRedis.Set(ctx, trafficUsedKey(uniqueKey),  u.UsedTraffic,  0)
-				inboundInfo.trafficRedis.Set(ctx, trafficLimitKey(uniqueKey), u.TrafficLimit, 0)
-				cancel()
-			}
-
 			limit := determineRate(inboundInfo.NodeSpeedLimit, u.SpeedLimit)
 			if limit > 0 {
 				if bucket, ok := inboundInfo.BucketHub.Load(key); ok {
@@ -166,9 +140,6 @@ func (l *Limiter) DeleteInboundLimiter(tag string) error {
 				log.Printf("error closing Redis client for tag %s: %v", tag, err)
 			}
 		}
-		if info.trafficRedis != nil && info.trafficRedis != info.GlobalIPLimit.redisClient {
-			info.trafficRedis.Close()
-		}
 	}
 	l.InboundInfo.Delete(tag)
 	return nil
@@ -180,16 +151,6 @@ func (l *Limiter) DeleteSubscriptionBuckets(tag string, emails []string) {
 		for _, email := range emails {
 			inboundInfo.BucketHub.Delete(email)
 			inboundInfo.SubscriptionInfo.Delete(email)
-			
-			if inboundInfo.trafficRedis != nil {
-				ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-				uniqueKey := strings.TrimPrefix(email, tag+"_")
-				inboundInfo.trafficRedis.Del(ctx,
-					trafficUsedKey(uniqueKey),
-					trafficLimitKey(uniqueKey),
-				)
-				cancel()
-			}
 		}
 	}
 }
@@ -283,25 +244,6 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 			ipLimit = u.IPLimit
 		}
 
-		if inboundInfo.trafficRedis != nil {
-			ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-			uniqueKey := strings.TrimPrefix(email, tag+"_")
-
-			pipe := inboundInfo.trafficRedis.Pipeline()
-			usedCmd  := pipe.Get(ctx, trafficUsedKey(uniqueKey))
-			limitCmd := pipe.Get(ctx, trafficLimitKey(uniqueKey))
-			pipe.Exec(ctx)
-			cancel()
-
-			limitVal, err := limitCmd.Int64()
-			if err == nil && limitVal > 0 {
-				usedVal, err := usedCmd.Int64()
-				if err == nil && usedVal >= limitVal {
-					return nil, false, true 
-				}
-			}
-		}
-
 		if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
 			if reject := checkLimit(inboundInfo, email, uid, ip, ipLimit, tag); reject {
 				return nil, false, true
@@ -321,36 +263,6 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 	}
 	newError("Get Limiter information failed").AtDebug()
 	return nil, false, false
-}
-
-func (l *Limiter) AddDelta(tag, email string, upload, download int64) bool {
-    value, ok := l.InboundInfo.Load(tag)
-    if !ok {
-        return false
-    }
-    inboundInfo := value.(*InboundInfo)
-    if inboundInfo.trafficRedis == nil {
-        return false
-    }
-
-    ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-    defer cancel()
-
-    rc := inboundInfo.trafficRedis
-    uniqueKey := strings.TrimPrefix(email, tag+"_")
-    total := upload + download
-
-    limitVal, err := rc.Get(ctx, trafficLimitKey(uniqueKey)).Int64()
-    if err != nil || limitVal == 0 {
-        return false
-    }
-
-    newUsed, err := rc.IncrBy(ctx, trafficUsedKey(uniqueKey), total).Result()
-    if err != nil {
-        return false
-    }
-
-    return newUsed >= limitVal
 }
 
 type pendingCounter struct {
@@ -416,44 +328,6 @@ func (l *Limiter) ResetTraffic(pending *PendingTraffic) {
 		pc.storage.UpCounter.Add(-pc.up)
 	    pc.storage.DownCounter.Add(-pc.down)
 	}
-}
-
-func (l *Limiter) CheckTrafficExceeded(tag string) []string {
-    value, ok := l.InboundInfo.Load(tag)
-    if !ok {
-        return nil
-    }
-    inboundInfo := value.(*InboundInfo)
-    if inboundInfo.trafficRedis == nil {
-        return nil
-    }
-
-    var exceeded []string
-    inboundInfo.SubscriptionInfo.Range(func(k, _ interface{}) bool {
-        email := k.(string)
-        uniqueKey := strings.TrimPrefix(email, tag+"_")
-
-        ctx, cancel := context.WithTimeout(context.Background(), 5*time.Second)
-        pipe := inboundInfo.trafficRedis.Pipeline()
-        usedCmd  := pipe.Get(ctx, trafficUsedKey(uniqueKey))
-        limitCmd := pipe.Get(ctx, trafficLimitKey(uniqueKey))
-        pipe.Exec(ctx)
-        cancel()
-
-        limitVal, err := limitCmd.Int64()
-        if err != nil || limitVal == 0 {
-            return true
-        }
-        usedVal, err := usedCmd.Int64()
-        if err != nil {
-            return true
-        }
-        if usedVal >= limitVal {
-            exceeded = append(exceeded, email)
-        }
-        return true
-    })
-    return exceeded
 }
 
 func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLimit int, tag string) bool {
