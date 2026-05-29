@@ -566,7 +566,9 @@ Socket-level options applied to the underlying TCP/UDP socket. Configured in the
 
 **`dialerProxy`** — the referenced outbound tag must exist in the Xray config. Circular references (A → B → A) will cause a connection loop.
 
-### Security Settings (**** socketSettings, maskSettings and finalRules are optional. You can chose not add to configuration ****)
+### Security Settings 
+
+> *** socketSettings, maskSettings and finalRules are optional. You can chose not add to configuration ***
 
 #### TLS
 ```
