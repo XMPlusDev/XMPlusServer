@@ -317,8 +317,6 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
 
 </details>
 
----
-
 <details>
 <summary><strong>Example: CDN obfuscation with custom method and session headers</strong></summary>
 
