@@ -11,7 +11,7 @@ require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/r3labs/diff/v2 v2.15.1
-	github.com/redis/go-redis/v9 v9.19.0
+	github.com/redis/go-redis/v9 v9.20.0
 	github.com/sagernet/sing v0.8.10
 	github.com/sagernet/sing-shadowsocks v0.2.9
 	github.com/spf13/cobra v1.10.2
