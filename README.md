@@ -568,7 +568,7 @@ Socket-level options applied to the underlying TCP/UDP socket. Configured in the
 
 ### Security Settings 
 
-> *** socketSettings, maskSettings and finalRules are optional. You can chose not add to configuration ***
+> NOTE:  socketSettings, maskSettings and finalRules are optional. You can chose not add to configuration
 
 #### TLS
 ```
