@@ -6,7 +6,7 @@ XRay-core server for NuxtJs version of XMPlus management panel
 cd /etc/XMRay
 ```
 
-### Onclick XMRay backennd Install
+### Onclick XMRay backend Install
 ```
 bash <(curl -Ls https://raw.githubusercontent.com/XMPlusDev/XMRay/script/install.sh)
 ```
@@ -69,12 +69,14 @@ Nodes:
         Timeout: 10 								# Timeout for redis request
 ```
 
+---
+
 ## XMPlus Panel Server configuration
 
 ### Network Settings
 
 #### TCP
-```
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -95,8 +97,9 @@ Nodes:
   }
 }
 ```
+
 #### TCP + HTTP
-```
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -122,8 +125,9 @@ Nodes:
   }
 }
 ```
-####  WS
-```
+
+#### WS
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -145,8 +149,8 @@ Nodes:
 }
 ```
 
-####  GRPC
-```
+#### GRPC
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -171,8 +175,8 @@ Nodes:
 }
 ```
 
-####  HTTPUPGRADE
-```
+#### HTTPUPGRADE
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -193,7 +197,7 @@ Nodes:
 }
 ```
 
-####  XHTTP
+#### XHTTP
 
 XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink traffic into separate HTTP requests. It supports CDN deployments and padding obfuscation to bypass CDN-level traffic detection.
 
@@ -248,7 +252,8 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
 
 ---
 
-##### Padding obfuscation (CDN detection bypass)
+<details>
+<summary><strong>Padding obfuscation (CDN detection bypass)</strong></summary>
 
 These fields enable obfuscation of the padding pattern to bypass CDN-level traffic fingerprinting (e.g. blocking of the default `x_padding=XXXX...` query parameter pattern).
 
@@ -279,7 +284,10 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
 }
 ```
 
-##### Obfuscation fields
+</details>
+
+<details>
+<summary><strong>Obfuscation fields</strong></summary>
 
 | Field | Type | Default | Description |
 |---|---|---|---|
@@ -294,7 +302,10 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
 | `seqPlacement` | string | `"path"` | Where the request sequence number is placed — see placement options below |
 | `seqKey` | string | auto | Key name for the sequence number when `seqPlacement` is not `path`. Defaults to `x_seq` (query/cookie) or `X-Seq` (header) |
 
-##### Placement options
+</details>
+
+<details>
+<summary><strong>Placement options</strong></summary>
 
 | Value | Description |
 |---|---|
@@ -303,6 +314,8 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
 | `cookie` | Sent as an HTTP `Cookie` header: `Cookie: key=value` |
 | `header` | Sent as a standalone HTTP header: `Key: value` |
 | `path` | (session/seq only) Embedded directly in the URL path |
+
+</details>
 
 ---
 
@@ -351,8 +364,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 
 ---
 
-####  KCP
-```
+#### KCP
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -370,8 +383,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 }
 ```
 
-####  HYSTERIA
-```
+#### HYSTERIA
+```json
 {
   "encryption": "none",
   "decryption": "none",
@@ -387,6 +400,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
   }
 }
 ```
+
+---
 
 ### Mask Settings
 
@@ -430,7 +445,7 @@ Choose names that blend in with real CDN traffic. Some suggestions:
     "quicParams": {
       "congestion": "bbr",
       "debug": false,
-	  "bbrProfile": "standard",
+      "bbrProfile": "standard",
       "brutalUp": "100mbps",
       "brutalDown": "100mbps",
       "udpHop": {
@@ -449,18 +464,20 @@ Choose names that blend in with real CDN traffic. Some suggestions:
   }
 }
 ```
-[quicParams](https://xtls.github.io/config/transports/finalmask.html#quicparams)
 
-`quicParams` fields:
+<details>
+<summary><strong>maskSettings — quicParams fields</strong></summary>
+
+[quicParams](https://xtls.github.io/config/transports/finalmask.html#quicparams)
 
 | Field | Type | Description |
 |---|---|---|
 | `congestion` | string | Congestion control algorithm, e.g. `"bbr"`, `"cubic"` |
 | `debug` | bool | Enable debug mode |
-| `bbrProfile` | string | Congestion control algorithm, e.g. `"conservative"`, `"standard"`, `"aggressive"` |
+| `bbrProfile` | string | BBR profile: `"conservative"`, `"standard"`, `"aggressive"` |
 | `brutalUp` | string | Upload bandwidth for brutal congestion, e.g. `"100mbps"`, `"1gbps"` |
 | `brutalDown` | string | Download bandwidth for brutal congestion |
-| `udpHop.ports` | string/arraay | Port list for UDP hopping |
+| `udpHop.ports` | string/array | Port list for UDP hopping |
 | `udpHop.interval` | object | Hop interval range in seconds `{ "from": N, "to": N }` |
 | `initStreamReceiveWindow` | uint64 | Initial stream receive window size (bytes) |
 | `maxStreamReceiveWindow` | uint64 | Max stream receive window size (bytes) |
@@ -471,37 +488,46 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 | `disablePathMTUDiscovery` | bool | Disable path MTU discovery |
 | `maxIncomingStreams` | int64 | Max number of incoming streams |
 
+</details>
 
-#### Final Rule Settings (`finalRule`)
+---
+
+### Final Rule Settings (`finalRule`)
+
 [FinalRule](https://xtls.github.io/config/outbounds/freedom.html#finalruleobject)
-```
-"finalRules" :[
-	{
-	  "action": "block",
-	  "network": "tcp,udp",
-	  "port": "53,443",
-	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
-	  "blockDelay": "30-90"
-	}
-  ]
+
+```json
+"finalRules": [
+  {
+    "action": "block",
+    "network": "tcp,udp",
+    "port": "53,443",
+    "ip": ["10.0.0.0/8", "2001:db8::/32"],
+    "blockDelay": "30-90"
+  }
+]
 ```
 
-`finalRules` fields:
+<details>
+<summary><strong>finalRules fields</strong></summary>
 
 | Field | Type | Description |
 |---|---|---|
-| `action` | string | Action to take when the rule matches. `"allow"` permits the connection, `"block"` drops it |
-| `network` | string | Comma-separated network types to match, e.g. `"tcp"`, `"udp"`, `"tcp,udp"` |
-| `port` | string | Port or port range to match, e.g. `"53"`, `"443"`, `"8080-9000"`, `"53,443,8080-9000"` |
-| `ip` | array | List of IP CIDRs or geo tags to match, e.g. `"10.0.0.0/8"`, `"geoip:cn"` |
-| `blockDelay` | string | When `action` is `"block"`, adds a random delay (ms) before dropping, e.g. `"30-90"`. Omit or leave empty for immediate drop |
+| `action` | string | Action when rule matches. `"allow"` permits the connection, `"block"` drops it |
+| `network` | string | Comma-separated network types: `"tcp"`, `"udp"`, `"tcp,udp"` |
+| `port` | string | Port or range to match, e.g. `"53"`, `"443"`, `"8080-9000"`, `"53,443,8080-9000"` |
+| `ip` | array | List of IP CIDRs or geo tags, e.g. `"10.0.0.0/8"`, `"geoip:cn"` |
+| `blockDelay` | string | Random delay (ms) before dropping when `action` is `"block"`, e.g. `"30-90"`. Omit for immediate drop |
 
+</details>
 
+---
 
-#### Socket Settings (`socketSettings`)
+### Socket Settings (`socketSettings`)
+
 [Sockopt](https://xtls.github.io/config/transports/sockopt.html)
 
-Socket-level options applied to the underlying TCP/UDP socket. Configured in the panel under `transportSettings.socketSettings`. All fields are optional — omitting a field leaves Xray's default in place.
+Socket-level options applied to the underlying TCP/UDP socket. All fields are optional — omitting a field leaves Xray's default in place.
 
 ```json
 {
@@ -524,54 +550,59 @@ Socket-level options applied to the underlying TCP/UDP socket. Configured in the
 }
 ```
 
-##### Field reference
+<details>
+<summary><strong>socketSettings fields</strong></summary>
 
 | Field | Type | Default | Scope | Description |
 |---|---|---|---|---|
-| `acceptProxyProtocol` | bool | `false` | Inbound | Accept PROXY protocol v1/v2 from an upstream load balancer or reverse proxy (e.g. Nginx, HAProxy). The real client IP is read from the PROXY header. Only valid on TCP-based transports (`tcp`, `ws`, `httpupgrade`). |
+| `acceptProxyProtocol` | bool | `false` | Inbound | Accept PROXY protocol v1/v2 from an upstream load balancer or reverse proxy (e.g. Nginx, HAProxy). Real client IP is read from the PROXY header. TCP-based transports only (`tcp`, `ws`, `httpupgrade`). |
 | `domainStrategy` | string | `"AsIs"` | Both | DNS resolution strategy for outbound connections. See strategies table below. |
-| `tcpFastOpen` | bool \| int | `false` | Both | Enable TCP Fast Open (TFO). `true` uses the OS default queue size. An integer explicitly sets the queue size (e.g. `256`). Reduces latency on reconnect by sending data in the SYN packet. Requires kernel ≥ 3.7 (Linux) or Windows 10 1607+. |
-| `tcpKeepAliveInterval` | int | `0` | Both | Interval in seconds between TCP keep-alive probes after the idle period expires. `0` uses the OS default. Keeps long-lived connections alive through NAT/firewall state tables. |
-| `tcpKeepAliveIdle` | int | `0` | Both | Seconds of inactivity before the first keep-alive probe is sent. `0` uses the OS default (typically 7200s on Linux). Lower values detect dead connections faster. |
-| `tcpUserTimeout` | int | `0` | Both | Milliseconds the kernel waits for unacknowledged data before aborting the connection (`TCP_USER_TIMEOUT`). `0` uses the OS default. Useful for detecting broken connections faster than keep-alive alone. |
-| `tcpMaxSeg` | int | `0` | Both | Maximum TCP segment size (MSS) in bytes (`TCP_MAXSEG`). `0` uses the OS default. Reduce below 1460 when using tunnels (e.g. VPN/WireGuard) to avoid fragmentation. |
-| `tcpWindowClamp` | int | `0` | Both | Clamp the TCP receive window to this size in bytes (`TCP_WINDOW_CLAMP`). `0` disables clamping. Rarely needed; useful in constrained-bandwidth environments. |
-| `tcpMptcp` | bool | `false` | Both | Enable Multipath TCP (MPTCP). Allows a connection to use multiple network paths simultaneously for throughput and resilience. Requires kernel ≥ 5.6 (Linux) with MPTCP compiled in. |
-| `tcpCongestion` | string | `""` | Both | TCP congestion control algorithm. Common values: `"bbr"`, `"cubic"`, `"reno"`. Empty string leaves the system default. `bbr` is recommended for high-latency or lossy links. Requires the algorithm to be loaded in the kernel (`modprobe tcp_bbr`). |
-| `interface` | string | `""` | Both | Bind the socket to a specific network interface by name (e.g. `"eth0"`, `"wg0"`). Useful for multi-homed servers or policy routing. Empty string binds to the default interface. |
-| `v6only` | bool | `false` | Both | When `true`, an IPv6 listening socket (`::`) will not accept IPv4-mapped connections (`IPV6_V6ONLY`). Only relevant when `listeningIP` is `"::"` or `"0.0.0.0"` is absent. |
-| `dialerProxy` | string | `""` | Outbound | Tag of another outbound to use as the underlying transport for this connection. Allows chaining outbounds (e.g. route relay traffic through a SOCKS5 outbound). Empty string disables proxying. |
-| `trustedXForwardedFor` | string[] | `[]` | Inbound | List of trusted upstream IP CIDRs or addresses whose `X-Forwarded-For` header is trusted for real-client-IP extraction (e.g. `["127.0.0.1", "10.0.0.0/8"]`). Only applies to HTTP-based inbound transports (`ws`, `httpupgrade`, `xhttp`). Empty list disables trusted forwarding. |
+| `tcpFastOpen` | bool \| int | `false` | Both | Enable TCP Fast Open (TFO). `true` uses OS default queue size; integer sets explicit queue size. Requires kernel ≥ 3.7 (Linux) or Windows 10 1607+. |
+| `tcpKeepAliveInterval` | int | `0` | Both | Seconds between TCP keep-alive probes after idle period expires. Set together with `tcpKeepAliveIdle`. |
+| `tcpKeepAliveIdle` | int | `0` | Both | Seconds of inactivity before first keep-alive probe. OS default ~7200s on Linux. |
+| `tcpUserTimeout` | int | `0` | Both | Milliseconds before aborting connection with unacknowledged data (`TCP_USER_TIMEOUT`). |
+| `tcpMaxSeg` | int | `0` | Both | Max TCP segment size in bytes (`TCP_MAXSEG`). Reduce below 1460 when using tunnels to avoid fragmentation. |
+| `tcpWindowClamp` | int | `0` | Both | Clamp TCP receive window to this size (`TCP_WINDOW_CLAMP`). |
+| `tcpMptcp` | bool | `false` | Both | Enable Multipath TCP. Requires kernel ≥ 5.6 with MPTCP compiled in. |
+| `tcpCongestion` | string | `""` | Both | TCP congestion algorithm: `"bbr"`, `"cubic"`, `"reno"`. Must be loaded in kernel (`modprobe tcp_bbr`). |
+| `interface` | string | `""` | Both | Bind socket to a specific network interface, e.g. `"eth0"`, `"wg0"`. |
+| `v6only` | bool | `false` | Both | When `true`, IPv6 socket will not accept IPv4-mapped connections (`IPV6_V6ONLY`). |
+| `dialerProxy` | string | `""` | Outbound | Tag of another outbound to use as underlying transport. Enables outbound chaining. |
+| `trustedXForwardedFor` | string[] | `[]` | Inbound | Trusted upstream CIDRs for `X-Forwarded-For` header extraction. HTTP-based inbounds only. |
 
 ##### `domainStrategy` values
 
 | Value | Description |
 |---|---|
-| `"AsIs"` | Use the domain name as-is; let the OS resolve it. Default. |
-| `"UseIP"` | Resolve the domain to IP before connecting, using Xray's internal DNS. |
-| `"UseIPv4"` | Resolve and force an IPv4 address. |
-| `"UseIPv6"` | Resolve and force an IPv6 address. |
+| `"AsIs"` | Use domain name as-is; let the OS resolve it. Default. |
+| `"UseIP"` | Resolve domain to IP using Xray's internal DNS before connecting. |
+| `"UseIPv4"` | Resolve and force IPv4. |
+| `"UseIPv6"` | Resolve and force IPv6. |
 | `"UseIPv4v6"` | Resolve and prefer IPv4, fall back to IPv6. |
 | `"UseIPv6v4"` | Resolve and prefer IPv6, fall back to IPv4. |
 
 ##### Notes
 
-**`acceptProxyProtocol` vs `trustedXForwardedFor`** — these serve different purposes. `acceptProxyProtocol` reads the real IP from a binary PROXY protocol header injected at the TCP layer (Nginx `proxy_protocol on`). `trustedXForwardedFor` reads it from an HTTP header injected at the application layer (Nginx `proxy_set_header X-Forwarded-For`). Use the one that matches your reverse proxy configuration.
+**`acceptProxyProtocol` vs `trustedXForwardedFor`** — `acceptProxyProtocol` reads the real IP from a binary PROXY protocol header at the TCP layer (Nginx `proxy_protocol on`). `trustedXForwardedFor` reads it from an HTTP header at the application layer (Nginx `proxy_set_header X-Forwarded-For`). Use the one that matches your reverse proxy configuration.
 
-**`tcpKeepAliveInterval` and `tcpKeepAliveIdle`** — both must be set together for keep-alive to behave predictably. Setting only `tcpKeepAliveInterval` without `tcpKeepAliveIdle` may have no effect on some kernels.
+**`tcpKeepAliveInterval` and `tcpKeepAliveIdle`** — both must be set together for keep-alive to behave predictably.
 
-**`tcpFastOpen`** — must be enabled on both client and server sides to take effect. Also requires the server OS to have `net.ipv4.tcp_fastopen` set to `3` (`sysctl -w net.ipv4.tcp_fastopen=3`).
+**`tcpFastOpen`** — must be enabled on both client and server. Also requires `net.ipv4.tcp_fastopen=3` (`sysctl -w net.ipv4.tcp_fastopen=3`).
 
-**`interface`** — the named interface must exist at the time the node starts. If the interface goes down and comes back up, existing connections are not migrated; new connections will bind correctly on reconnect.
+**`interface`** — the named interface must exist when the node starts. Existing connections are not migrated if it goes down and comes back.
 
-**`dialerProxy`** — the referenced outbound tag must exist in the Xray config. Circular references (A → B → A) will cause a connection loop.
+**`dialerProxy`** — the referenced outbound tag must exist in the Xray config. Circular references cause a connection loop.
 
-### Security Settings 
+</details>
 
-> NOTE:  socketSettings, maskSettings and finalRules are optional. You can chose not add to configuration
+---
+
+### Security Settings
+
+> **NOTE:** `socketSettings`, `maskSettings` and `finalRules` are optional. You can choose not to add them to the configuration.
 
 #### TLS
-```
+```json
 {
   "tlsSettings": {
     "allowInsecure": false,
@@ -615,19 +646,20 @@ Socket-level options applied to the underlying TCP/UDP socket. Configured in the
     ]
   },
   "finalRules": [
-	{
-	  "action": "block",
-	  "network": "tcp,udp",
-	  "port": "53,443",
-	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
-	  "blockDelay": "30-90"
-	}
+    {
+      "action": "block",
+      "network": "tcp,udp",
+      "port": "53,443",
+      "ip": ["10.0.0.0/8", "2001:db8::/32"],
+      "blockDelay": "30-90"
+    }
   ]
 }
 ```
+
 #### REALITY
 
-```
+```json
 {
   "realitySettings": {
     "target": "www.microsoft.com:443",
@@ -672,16 +704,18 @@ Socket-level options applied to the underlying TCP/UDP socket. Configured in the
     ]
   },
   "finalRules": [
-	{
-	  "action": "block",
-	  "network": "tcp,udp",
-	  "port": "53,443",
-	  "ip": ["10.0.0.0/8", "2001:db8::/32"],
-	  "blockDelay": "30-90"
-	}
+    {
+      "action": "block",
+      "network": "tcp,udp",
+      "port": "53,443",
+      "ip": ["10.0.0.0/8", "2001:db8::/32"],
+      "blockDelay": "30-90"
+    }
   ]
 }
 ```
+
+---
 
 # XMRay Commands Reference
 
