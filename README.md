@@ -319,7 +319,8 @@ These fields enable obfuscation of the padding pattern to bypass CDN-level traff
 
 ---
 
-##### Example: CDN obfuscation with custom method and session headers
+<details>
+<summary><strong>Example: CDN obfuscation with custom method and session headers</strong></summary>
 
 A configuration that disguises XHTTP traffic as normal CDN cache validation requests:
 
@@ -361,6 +362,8 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 **For `sessionKey`:** `X-Request-ID`, `X-Client-ID`, `X-Auth-Token`, `sid`, `token`, `visitor_id`
 
 **For `seqKey`:** `chunk`, `fragment`, `part`, `segment`, `offset`, `range`
+
+</details>
 
 ---
 
