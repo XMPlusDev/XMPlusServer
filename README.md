@@ -411,7 +411,7 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 `maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
 
 #### TCP mask types: `header-custom`, `fragment`, `sudoku`
-#### UDP mask types: `header-custom`, `header-dns`, `header-dtls`, `header-srtp`, `header-utp`, `header-wechat`, `header-wireguard`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`
+#### UDP mask types: `header-custom`, `header-dns`, `header-dtls`, `header-srtp`, `header-utp`, `header-wechat`, `header-wireguard`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`
 
 ```json
 {
