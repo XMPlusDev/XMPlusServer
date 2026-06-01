@@ -76,12 +76,14 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 			Username: redisConfig.Username,
 			Password: redisConfig.Password,
 			DB:       redisConfig.DB,
+			DialTimeout: redisConfig.Timeout * time.Second,
+			PoolSize:    10,
 		})
 		inboundInfo.GlobalIPLimit.redisClient = rc
 		rs := redisStore.NewRedis(rc, store.WithExpiration(time.Duration(expiry)*time.Second))
 		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
 	} else {
-		fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled. ip limit requires redis to be enabled", tag)
+		log.Printf("[Limiter] Redis disabled for tag %s — IP limiting unavailable", tag)
 	}
 
 	subscriptionMap := new(sync.Map)
@@ -103,7 +105,7 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 		inboundInfo := value.(*InboundInfo)
 		
 		if inboundInfo.GlobalIPLimit.config == nil || !inboundInfo.GlobalIPLimit.config.Enable {
-			fmt.Errorf("[Limiter] : Redis config for 【NodeTAG=%s】 is disabled. ip limit requires redis to be enabled", tag)
+			log.Printf("[Limiter] Redis disabled for tag %s — IP limiting unavailable", tag)
 		}
 		
 		for _, u := range *updatedServiceList {
