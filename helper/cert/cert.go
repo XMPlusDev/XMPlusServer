@@ -27,7 +27,7 @@ func New(certConf *CertConfig, path ...string) (*LegoCMD, error) {
 		if configPath != "" {
 			p = configPath
 		} else {
-			p = "/etc/XMPlus"
+			p = "/etc/XMRay"
 		}
 	}
 	
