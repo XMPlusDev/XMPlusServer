@@ -631,6 +631,7 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 
 <details>
 <summary><strong>Security Settings (TLS) with maskSettings, socketSettings and finalRules</strong></summary>
+
 ```json
 {
   "tlsSettings": {
@@ -769,7 +770,7 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 }
 ```
 </details>
----
+
 
 # XMRay Commands Reference
 
