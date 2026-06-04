@@ -18,25 +18,11 @@ const (
 	baseCertificatesFolderName = "certificates"
 )
 
-// CertificatesStorage a certificates' storage.
-//
-// rootPath:
-//
-//	./.lego/certificates/
-//	     │      └── root certificates directory
-//	     └── "path" option
-//
-// archivePath:
-//
-//	./.lego/archives/
-//	     │      └── archived certificates directory
-//	     └── "path" option
 type CertificatesStorage struct {
 	rootPath string
 	pem      bool
 }
 
-// NewCertificatesStorage create a new certificates storage.
 func NewCertificatesStorage(path string) *CertificatesStorage {
 	return &CertificatesStorage{
 		rootPath: filepath.Join(path, baseCertificatesFolderName),
@@ -57,8 +43,6 @@ func (s *CertificatesStorage) GetRootPath() string {
 func (s *CertificatesStorage) SaveResource(certRes *certificate.Resource) {
 	domain := certRes.Domain
 
-	// We store the certificate, private key and metadata in different files
-	// as web servers would not be able to work with a combined file.
 	err := s.WriteFile(domain, ".crt", certRes.Certificate)
 	if err != nil {
 		log.Panicf("Unable to save Certificate for domain %s\n\t%v", domain, err)

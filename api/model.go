@@ -76,8 +76,6 @@ type Subscription struct {
 	Passwd       string `json:"passwd"`
 	Speedlimit   int    `json:"speed_limit"`
 	Iplimit      int    `json:"ip_limit"`
-	TrafficLimit int64  `json:"traffic_limit"`
-	UsedTraffic  int64  `json:"used_traffic"`
 }
 
 type BlockingRules struct {
@@ -96,7 +94,6 @@ type TlsSettings struct {
 	RejectUnknownSni     bool
 	VerifyPeerCertByName string
 	Alpn                 []string
-	AllowInsecure        bool
 
 	ECHServerKeys        string
 	ECHConfigList        string
@@ -313,8 +310,6 @@ type SubscriptionInfo struct {
 	Passwd       string
 	SpeedLimit   uint64
 	IPLimit      int
-	TrafficLimit int64
-	UsedTraffic  int64
 }
 
 type OnlineIP struct {

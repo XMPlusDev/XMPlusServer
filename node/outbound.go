@@ -320,7 +320,6 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 	if nodeInfo.SecurityType == "tls" && nodeInfo.TlsSettings != nil {
 		streamSetting.Security = "tls"
 		streamSetting.TLSSettings = &conf.TLSConfig{
-			AllowInsecure:        nodeInfo.TlsSettings.AllowInsecure,
 			ServerName:           nodeInfo.TlsSettings.ServerName,
 			Fingerprint:          nodeInfo.TlsSettings.FingerPrint,
 			VerifyPeerCertByName: nodeInfo.TlsSettings.VerifyPeerCertByName,

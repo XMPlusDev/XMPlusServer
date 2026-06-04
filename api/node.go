@@ -877,10 +877,6 @@ func (c *Client) parseRelaySecuritySettings(securityData *simplejson.Json, nodeI
 	if tlsSettings, ok := securityData.CheckGet("tlsSettings"); ok {
 		nodeInfo.SecurityType = "tls"
 		nodeInfo.TlsSettings = &TlsSettings{}
-		
-		if Insecure, err := tlsSettings.Get("allowInsecure").Bool(); err == nil {
-			nodeInfo.TlsSettings.AllowInsecure = Insecure
-		}
 
 		if fingerprint, err := tlsSettings.Get("fingerprint").String(); err == nil {
 			nodeInfo.TlsSettings.FingerPrint = fingerprint

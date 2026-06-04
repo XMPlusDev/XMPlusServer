@@ -76,7 +76,7 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 			Username: redisConfig.Username,
 			Password: redisConfig.Password,
 			DB:       redisConfig.DB,
-			DialTimeout: redisConfig.Timeout * time.Second,
+			DialTimeout: time.Duration(redisConfig.Timeout) * time.Second,
 			PoolSize:    10,
 		})
 		inboundInfo.GlobalIPLimit.redisClient = rc

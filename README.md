@@ -411,7 +411,7 @@ Choose names that blend in with real CDN traffic. Some suggestions:
 `maskSettings` is optional and applies transport-level obfuscation. All three fields (`tcp`, `udp`, `quicParams`) are optional and can be used independently or together.
 
 #### TCP mask types: `header-custom`, `fragment`, `sudoku`
-#### UDP mask types: `header-custom`, `header-dns`, `header-dtls`, `header-srtp`, `header-utp`, `header-wechat`, `header-wireguard`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`
+#### UDP mask types:  `mkcp-legacy`, `mkcp-original`, `mkcp-aes128gcm`, `noise`, `salamander`, `sudoku`, `xdns`, `xicmp`, `realm`
 
 ```json
 {
@@ -602,11 +602,38 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 
 > **NOTE:** `socketSettings`, `maskSettings` and `finalRules` are optional. You can choose not to add them to the configuration.
 
+#### NONE
+```json
+{
+  none: []
+}
+```
+
 #### TLS
 ```json
 {
   "tlsSettings": {
-    "allowInsecure": false,
+    "alpn": ["h2", "http/1.1"],
+    "certMode": "http",
+    "certDomainName": "tld.dev",
+    "fragment": "1,40-60,30-50",
+    "serverName": "google.com",
+    "fingerprint": "chrome",
+    "curvePreferences": ["X25519", "X25519MLKEM768"],
+    "rejectUnknownSni": false,
+    "verifyPeerCertByName": "google.com",
+    "pinnedPeerCertSha256": "",
+    "echServerKeys": "",
+    "echConfigList": ""
+  }
+}
+```
+
+<details>
+<summary><strong>Security Settings (TLS) with maskSettings, socketSettings and finalRules</strong></summary>
+```json
+{
+  "tlsSettings": {
     "alpn": ["h2", "http/1.1"],
     "certMode": "http",
     "certDomainName": "tld.dev",
@@ -657,8 +684,34 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
   ]
 }
 ```
+</details>
 
 #### REALITY
+
+```json
+{
+  "realitySettings": {
+    "target": "www.microsoft.com:443",
+    "show": false,
+    "shortids": ["6ba85179e30d4fc2"],
+    "password": "u2Yirzjxx5R5miuJ-Od8CL4gAiCWj-65WOF2mSVyUz4",
+    "privateKey": "sBFSY3OzslfjR2VcSHaQG-6GASrH5YswYyqBR-1m3Vc",
+    "fingerprint": "chrome",
+    "serverNames": ["www.microsoft.com"],
+    "proxyprotocol": 0,
+    "mldsa65Seed": "",
+    "mldsa65Verify": "",
+    "spiderX": "",
+    "minClientVer": "",
+    "maxClientVer": "",
+    "maxTimeDiff": 0
+  }
+}
+```
+
+
+<details>
+<summary><strong>Security Settings(Reality) with maskSettings, socketSettings and finalRules</strong></summary>
 
 ```json
 {
@@ -715,7 +768,7 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
   ]
 }
 ```
-
+</details>
 ---
 
 # XMRay Commands Reference

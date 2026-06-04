@@ -17,7 +17,7 @@ require (
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
 	github.com/stretchr/testify v1.11.1
-	github.com/xtls/xray-core v1.260327.1-0.20260524143512-787aa7677b47
+	github.com/xtls/xray-core v1.260327.1-0.20260602235856-fdb9b616fc0e
 	golang.org/x/crypto v0.52.0
 	golang.org/x/net v0.55.0
 	golang.org/x/time v0.15.0
@@ -247,6 +247,10 @@ require (
 	github.com/nxadm/tail v1.4.11 // indirect
 	github.com/openshift/gssapi v0.0.0-20161010215902-5fb4217df13b // indirect
 	github.com/peterhellberg/link v1.2.0 // indirect
+	github.com/pion/dtls/v3 v3.1.2 // indirect
+	github.com/pion/logging v0.2.4 // indirect
+	github.com/pion/stun/v3 v3.1.2 // indirect
+	github.com/pion/transport/v4 v4.0.1 // indirect
 	github.com/regfish/regfish-dnsapi-go v0.1.1 // indirect
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.2.0 // indirect
@@ -255,6 +259,7 @@ require (
 	github.com/ucloud/ucloud-sdk-go v0.22.63 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.242 // indirect
 	github.com/vultr/govultr/v3 v3.31.0 // indirect
+	github.com/wlynxg/anet v0.0.5 // indirect
 	github.com/yandex-cloud/go-sdk/services/dns v0.0.54 // indirect
 	github.com/yandex-cloud/go-sdk/v2 v2.92.0 // indirect
 	github.com/youmark/pkcs8 v0.0.0-20240726163527-a2c0da244d78 // indirect

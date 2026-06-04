@@ -45,8 +45,6 @@ func (l *LegoCMD) Run(CertMode string, CertDomain string) error {
 
 	cert, err := obtainCertificate([]string{CertDomain}, client)
 	if err != nil {
-		// Make sure to return a non-zero exit code if ObtainSANCertificate returned at least one error.
-		// Due to us not returning partial certificate we can just exit here instead of at the end.
 		log.Panicf("Could not obtain certificates:\n\t%v", err)
 	}
 
@@ -57,7 +55,6 @@ func (l *LegoCMD) Run(CertMode string, CertDomain string) error {
 
 func obtainCertificate(domains []string, client *lego.Client) (*certificate.Resource, error) {
 	if len(domains) > 0 {
-		// obtain a certificate, generating a new private key
 		request := certificate.ObtainRequest{
 			Domains: domains,
 			Bundle:  true,

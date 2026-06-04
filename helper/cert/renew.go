@@ -23,9 +23,6 @@ func (l *LegoCMD) Renew(CertMode string, CertDomain string) (bool, error) {
 }
 
 func renewForDomains(domain string, client *lego.Client, certsStorage *CertificatesStorage) (bool, error) {
-	// load the cert resource from files.
-	// We store the certificate, private key and metadata in different files
-	// as web servers would not be able to work with a combined file.
 	certificates, err := certsStorage.ReadCertificate(domain, ".crt")
 	if err != nil {
 		log.Panicf("Error while loading the certificate for domain %s\n\t%v", domain, err)
@@ -37,7 +34,6 @@ func renewForDomains(domain string, client *lego.Client, certsStorage *Certifica
 		return false, nil
 	}
 
-	// This is just meant to be informal for the user.
 	timeLeft := cert.NotAfter.Sub(time.Now().UTC())
 	log.Printf("[%s] acme: Trying renewal with %d hours remaining", domain, int(timeLeft.Hours()))
 
