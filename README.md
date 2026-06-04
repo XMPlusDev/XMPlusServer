@@ -605,7 +605,7 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 #### NONE
 ```json
 {
-  none: []
+  "none": []
 }
 ```
 
