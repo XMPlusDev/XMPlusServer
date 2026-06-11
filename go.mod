@@ -11,12 +11,11 @@ require (
 	github.com/go-acme/lego/v4 v4.35.2
 	github.com/go-resty/resty/v2 v2.17.2
 	github.com/r3labs/diff/v2 v2.15.1
-	github.com/redis/go-redis/v9 v9.20.0
+	github.com/redis/go-redis/v9 v9.20.1
 	github.com/sagernet/sing v0.8.10
 	github.com/sagernet/sing-shadowsocks v0.2.9
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
-	github.com/stretchr/testify v1.11.1
 	github.com/xtls/xray-core v1.260327.1-0.20260602235856-fdb9b616fc0e
 	golang.org/x/crypto v0.52.0
 	golang.org/x/net v0.55.0
@@ -255,6 +254,7 @@ require (
 	github.com/robfig/cron/v3 v3.0.1 // indirect
 	github.com/selectel/go-selvpcclient/v4 v4.2.0 // indirect
 	github.com/stretchr/objx v0.5.3 // indirect
+	github.com/stretchr/testify v1.11.1 // indirect
 	github.com/tjfoc/gmsm v1.4.1 // indirect
 	github.com/ucloud/ucloud-sdk-go v0.22.63 // indirect
 	github.com/volcengine/volc-sdk-golang v1.0.242 // indirect
