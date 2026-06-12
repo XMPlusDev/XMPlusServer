@@ -35,10 +35,12 @@ func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 	}
 
 	pollInterval := response.Get("poll_interval").MustInt()
+	version := response.Get("api_version").MustInt()
 
 	return &ServerNodesResponse{
 		Nodes:        nodes,
 		PollInterval: pollInterval,
+		Version: version,
 	}, nil
 }
 
