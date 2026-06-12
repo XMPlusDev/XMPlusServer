@@ -1,0 +1,48 @@
+ApiConfig:                                        # API Configuraion
+  ApiHost: "https://api.xyz.com"                  # Panel api host address
+  ApiKey: "123"                                   # Server api key from admin general settigs 
+  ServerID: 1                                     # Important: The id of the server and not node id.
+  Timeout: 30                                     # Connection time out. Cannot be higer than api update interval.
+CertConfig:                                       # Cert config for when cert mode is dns
+  Provider: cloudflare
+  Providers:
+    cloudflare:                                   # Provider name. eg, cloudflare. Set in panel tlsSettings - dnsProvider https://go-acme.github.io/lego/dns/index.html
+      CertEnv:
+        CLOUDFLARE_DNS_API_TOKEN: x               # Cert Provider environment variables.
+RedisConfig:
+  Enable: false                                   # Enable the global ip limit
+  Network: tcp                                    # Redis protocol, tcp or unix
+  Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path
+  Username:                                       # Redis username
+  Password:                                       # Redis password
+  DB: 0                                           # Redis DB
+  Timeout: 10                                     # Timeout for redis request
+ReverbConfig:
+  - Enable: false                                 # Enable websocket to trigger real-time subscription and node updates from panel
+    Host: "api.xyz.com:443"                       # Reverb REVERB_HOST:REVERB_PORT  in .env for api /home/XMPlusPanel/.env 
+    AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
+    AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env
+    UseTLS: true                                  # Set to true if tls enabled for api
+InstanceConfig:                                   # Xray-core instance configuration
+  LogConfig:
+    Level: none                                   # Log level: none, error, warning, info, debug 
+    AccessPath:                                   # /etc/XMRay/access.Log
+    ErrorPath:                                    # /etc/XMRay/error.log
+    DNSLog: false                                 # true or false Whether to enable DNS query in logs
+    MaskAddress: half                             # half, full, quater
+  DnsConfig:
+    Enable: true                                  # Use custom dns config, ensure that you set the dns.json correctly
+    Path: /etc/XMRay/dns.json                     # /etc/XMRay/dns.json      https://xtls.github.io/config/dns.html
+    Strategy: AsIs                                # AsIs, UseIP, UseIPv4, UseIPv6
+  RouteConfig:
+    Enable: false                                 # Use custom route config, ensure that you set the route.json correctly
+    Path: /etc/XMRay/route.json                   #/etc/XMRay/route.json     https://xtls.github.io/config/routing.html
+  OutboundConfig:
+    Enable: false                                 # Use custom outbound config, ensure that you set the outbound.json correctly
+    Path: /etc/XMRay/outbound.json                #/etc/XMRay/outbound.json  https://xtls.github.io/config/outbound.html
+  ConnectionConfig:                               # Policy config https://xtls.github.io/config/policy.html
+    Handshake: 8                                  # Seconds to complete a handshake before the connection is dropped. Xray default: 4
+    ConnIdle: 120                                 # Seconds of inactivity before an idle connection is closed (0 = never). Xray default: 300
+    UplinkOnly: 0                                 # Seconds to wait after the downlink closes before tearing down the connection (0 = close immediately). Xray default: 2
+    DownlinkOnly: 0                               # Seconds to wait after the uplink closes before tearing down the connection (0 = close immediately). Xray default: 5
+    BufferSize: 64                                # Per-connection internal buffer size in KB. UDP packets are dropped when full (0 = disabled, use system default)
