@@ -14,7 +14,7 @@ import (
 
 func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 	res, err := c.client.R().
-		SetBody(map[string]string{"key": c.APIKey, "core": "singbox"}).
+		SetBody(map[string]string{"key": c.Key, "core": "xray"}).
 		ForceContentType("application/json").
 		SetPathParam("machineId", strconv.Itoa(c.ServerID)).
 		Post("/api/server/nodes/{machineId}")
