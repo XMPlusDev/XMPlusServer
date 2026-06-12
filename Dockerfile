@@ -1,0 +1,15 @@
+# Build go
+FROM golang:1.26.1-alpine AS builder
+WORKDIR /app
+COPY . .
+ENV CGO_ENABLED=0
+RUN go mod tidy
+RUN go build -v -o XMRay -trimpath -ldflags "-s -w -buildid=" .
+
+FROM alpine
+RUN apk --update --no-cache add tzdata ca-certificates \
+    && cp /usr/share/zoneinfo/Asia/Shanghai /etc/localtime
+RUN mkdir /etc/XMRay/
+COPY --from=builder /app/XMRay /usr/local/bin
+COPY build_assets/ /usr/local/bin
+ENTRYPOINT [ "XMRay", "--config", "/etc/XMRay/config.yml"]
