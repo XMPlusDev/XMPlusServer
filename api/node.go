@@ -14,34 +14,32 @@ import (
 
 func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 	res, err := c.client.R().
-		SetBody(map[string]string{"key": c.Key, "core": "xray"}).
+		SetBody(map[string]string{"key": c.APIKey, "core": "singbox"}).
 		ForceContentType("application/json").
-		SetPathParam("serverId", strconv.Itoa(c.ServerID)).
-		Post("/api/server/nodes/{serverId}")
-
-	response, err := c.checkResponse(res, err)
+		SetPathParam("machineId", strconv.Itoa(c.ServerID)).
+		Post("/api/server/nodes/{machineId}")
 	if err != nil {
-		return nil, err
+		return nil, fmt.Errorf("GetServerNodes request: %w", err)
+	}
+	if res.StatusCode() >= 400 {
+		return nil, fmt.Errorf("GetServerNodes error: %s", string(res.Body()))
 	}
 
-	nodesJSON, err := response.Get("nodes").MarshalJSON()
+	result, err := simplejson.NewJson(res.Body())
 	if err != nil {
-		return nil, fmt.Errorf("failed to parse nodes list: %w", err)
+		return nil, fmt.Errorf("parse GetServerNodes response: %w", err)
 	}
 
-	var nodes []*ServerNode
-	if err := json.Unmarshal(nodesJSON, &nodes); err != nil {
-		return nil, fmt.Errorf("failed to unmarshal nodes: %w", err)
+	raw, _ := result.Encode()
+	var resp ServerNodesResponse
+	if err := json.Unmarshal(raw, &resp); err != nil {
+		return nil, fmt.Errorf("unmarshal ServerNodesResponse: %w", err)
 	}
-
-	pollInterval := response.Get("poll_interval").MustInt()
-	version := response.Get("api_version").MustInt()
-
-	return &ServerNodesResponse{
-		Nodes:        nodes,
-		PollInterval: pollInterval,
-		Version: version,
-	}, nil
+	
+	if resp.PollInterval <= 0 {
+		resp.PollInterval = 60
+	}
+	return &resp, nil
 }
 
 func (c *Client) ReportServerStatus(status *ServerStatus) error {
