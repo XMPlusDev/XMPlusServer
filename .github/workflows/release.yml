@@ -45,10 +45,10 @@ jobs:
 
       - name: Prepare to release
         run: |
-          cp ${GITHUB_WORKSPACE}/main/files/dns.json ./build_assets/dns.json
-          cp ${GITHUB_WORKSPACE}/main/files/route.json ./build_assets/route.json
-          cp ${GITHUB_WORKSPACE}/main/files/outbound.json ./build_assets/outbound.json
-          cp ${GITHUB_WORKSPACE}/main/files/config.yml ./build_assets/config.yml
+          cp ${GITHUB_WORKSPACE}/files/dns.json ./build_assets/dns.json
+          cp ${GITHUB_WORKSPACE}/files/route.json ./build_assets/route.json
+          cp ${GITHUB_WORKSPACE}/files/outbound.json ./build_assets/outbound.json
+          cp ${GITHUB_WORKSPACE}/files/config.yml ./build_assets/config.yml
           LIST=('geoip geoip geoip' 'domain-list-community dlc geosite')
           for i in "${LIST[@]}"
           do
