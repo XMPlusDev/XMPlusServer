@@ -22,27 +22,26 @@ const serverStatusReportInterval = 5 * time.Second
 // of how many nodes run on this server.
 func (i *Instance) startServerStatusTask(
 	client *api.Client,
-	pusher func(string, any) error,
+	_ func(string, any) error,
 	_ int,
 ) {
-	interval := serverStatusReportInterval
-
-	task := scheduler.NewWithDelay("[ServerStatus]", "server_status", interval, func() error {
-		i.reportServerStatus(client, pusher)
+	task := scheduler.NewWithDelay("[ServerStatus]", "server_status", serverStatusReportInterval, func() error {
+		i.reportServerStatus(client)
 		return nil
 	})
-
-	if err := task.Start(); err != nil {
-		log.Printf("[ServerStatus] Failed to start: %v", err)
-		return
-	}
 
 	i.statusLock.Lock()
 	i.serverStatusTask = task
 	i.statusLock.Unlock()
+
+	go func() {
+		if err := task.Start(); err != nil {
+			log.Printf("[ServerStatus] Failed to start: %v", err)
+		}
+	}()
 }
 
-func (i *Instance) reportServerStatus(client *api.Client, pusher func(string, any) error) {
+func (i *Instance) reportServerStatus(client *api.Client) {
 	s := monitor.Collect()
 	status := &api.ServerStatus{
 		CPU:         s.CPU,
@@ -60,17 +59,19 @@ func (i *Instance) reportServerStatus(client *api.Client, pusher func(string, an
 		Uptime:      s.Uptime,
 	}
 
+	i.reverbMu.Lock()
+	pusher := i.currentPusher
+	i.reverbMu.Unlock()
+
 	if pusher != nil {
 		payload := &api.ServerStatusPayload{
 			ServerID: i.instanceConfig.ApiConfig.ServerID,
 			Data:     status,
 		}
-		if err := pusher("server_status", payload); err != nil {
-			log.Printf("[ServerStatus] Push failed: %v", err)
-		} else {
+		if err := pusher("server_status", payload); err == nil {
 			log.Printf("[ServerStatus] Pushed server status via Reverb")
+			return
 		}
-		return
 	}
 
 	if err := client.ReportServerStatus(status); err != nil {

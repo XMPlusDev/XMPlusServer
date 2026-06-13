@@ -114,6 +114,7 @@ func Compare(old, new *[]api.SubscriptionInfo) (deleted, added, modified []api.S
 func (m *Manager) SubscriptionMonitor(tag string, logPrefix string, pusher func(string, any) error) error {
 	pendingTraffic := m.dispatcher.DrainDeltas(tag)
 	if pendingTraffic != nil && len(pendingTraffic.Result) > 0 {
+		pushed := false
 		if pusher != nil {
 			traffic := make([]api.Traffic, len(pendingTraffic.Result))
 			for idx, t := range pendingTraffic.Result {
@@ -124,8 +125,10 @@ func (m *Manager) SubscriptionMonitor(tag string, logPrefix string, pusher func(
 			} else {
 				m.dispatcher.ResetTraffic(pendingTraffic)
 				log.Printf("%s Pushed %d Traffic Usage Data via Reverb", logPrefix, len(pendingTraffic.Result))
+				pushed = true
 			}
-		} else {
+		}
+		if !pushed {
 			if err := m.client.ReportTraffic(&pendingTraffic.Result); err != nil {
 				log.Printf("%s Failed to report traffic data: %v", logPrefix, err)
 			} else {
@@ -139,6 +142,7 @@ func (m *Manager) SubscriptionMonitor(tag string, logPrefix string, pusher func(
 	if err != nil {
 		log.Print(err)
 	} else if len(*onlineIPs) > 0 {
+		pushed := false
 		if pusher != nil {
 			aliveIPs := make([]api.AliveIP, len(*onlineIPs))
 			for idx, ip := range *onlineIPs {
@@ -148,8 +152,10 @@ func (m *Manager) SubscriptionMonitor(tag string, logPrefix string, pusher func(
 				log.Printf("%s Failed to push online IPs via Reverb: %v", logPrefix, err)
 			} else {
 				log.Printf("%s Pushed %d Online IPs Data via Reverb", logPrefix, len(*onlineIPs))
+				pushed = true
 			}
-		} else {
+		}
+		if !pushed {
 			if err = m.client.ReportOnlineIPs(onlineIPs); err != nil {
 				log.Printf("%s Failed to report online IPs: %v", logPrefix, err)
 			} else {

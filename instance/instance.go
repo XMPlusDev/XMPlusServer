@@ -36,6 +36,8 @@ type Instance struct {
 	reverbCancels    []context.CancelFunc
 	controllerMap    map[int]controller.TriggerInterface
 	reverbOutbound   chan reverbOutbound
+	reverbMu         sync.Mutex
+	currentPusher    func(string, any) error
 	serverPoller      *scheduler.PeriodicTask
 	serverPollTrigger chan struct{}
 	serverStatusTask  *scheduler.PeriodicTask
@@ -51,12 +53,22 @@ func New(instanceConfig *Config) *Instance {
 
 func (i *Instance) PushEvent(event string, data any) error {
 	result := make(chan error, 1)
-	payload := reverbOutbound{event: "client-" + event, data: data, result: result}
-	select {
-	case i.reverbOutbound <- payload:
-		return <-result
-	default:
-		return fmt.Errorf("reverb: outbound channel full or not connected")
+	i.reverbOutbound <- reverbOutbound{event: event, data: data, result: result}
+	return <-result
+}
+
+// drainReverbOutbound delivers queued push messages over the active Reverb connection.
+func (i *Instance) drainReverbOutbound() {
+	for ob := range i.reverbOutbound {
+		i.reverbMu.Lock()
+		pusher := i.currentPusher
+		i.reverbMu.Unlock()
+
+		if pusher != nil {
+			ob.result <- pusher(ob.event, ob.data)
+		} else {
+			ob.result <- fmt.Errorf("no active Reverb connection")
+		}
 	}
 }
 
@@ -213,10 +225,20 @@ func (i *Instance) Start() error {
 
 	log.Println("XMRay started successfully")
 
-	var pusher func(string, any) error
-	if i.reverbActive() {
-		pusher = i.PushEvent
+	pusher := i.PushEvent
+
+	log.Printf("[Reverb] config: %d entries: %+v", len(i.instanceConfig.ReverbConfig), i.instanceConfig.ReverbConfig)
+	for _, cfg := range i.instanceConfig.ReverbConfig {
+		if cfg == nil || !cfg.Enable {
+			log.Printf("[Reverb] skipping entry: %+v", cfg)
+			continue
+		}
+		ctx, cancel := context.WithCancel(context.Background())
+		i.reverbCancels = append(i.reverbCancels, cancel)
+		go i.reverbListener(ctx, cfg)
 	}
+
+	go i.drainReverbOutbound()
 
 	if i.instanceConfig.ApiConfig != nil && i.instanceConfig.ApiConfig.ServerID > 0 {
 		rootClient := api.New(i.instanceConfig.ApiConfig)
@@ -240,7 +262,8 @@ func (i *Instance) Start() error {
 
 		for _, s := range i.Service {
 			if err := s.Start(); err != nil {
-				return fmt.Errorf("XMRay failed to start: %s", err)
+				log.Printf("XMRay node failed to start: %s", err)
+				continue
 			}
 			if t, ok := s.(controller.TriggerInterface); ok {
 				nodeID := t.GetNodeID()
@@ -258,28 +281,8 @@ func (i *Instance) Start() error {
 		return fmt.Errorf("ApiConfig.ServerID is required — XMRay only supports server mode")
 	}
 
-	log.Printf("[Reverb] config: %d entries: %+v", len(i.instanceConfig.ReverbConfig), i.instanceConfig.ReverbConfig)
-	for _, cfg := range i.instanceConfig.ReverbConfig {
-		if cfg == nil || !cfg.Enable {
-			log.Printf("[Reverb] skipping entry: %+v", cfg)
-			continue
-		}
-		ctx, cancel := context.WithCancel(context.Background())
-		i.reverbCancels = append(i.reverbCancels, cancel)
-		go i.reverbListener(ctx, cfg)
-	}
-
 	i.Running = true
 	return nil
-}
-
-func (i *Instance) reverbActive() bool {
-	for _, cfg := range i.instanceConfig.ReverbConfig {
-		if cfg != nil && cfg.Enable {
-			return true
-		}
-	}
-	return false
 }
 
 func (i *Instance) Close() error {

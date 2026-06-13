@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"log"
 	"net/http"
+	"sync"
 	"time"
 
 	"github.com/gorilla/websocket"
@@ -37,6 +38,49 @@ type pusherConnected struct {
 }
 
 const reverbChannel = "private-xmplus"
+
+// reverbSession state — one per active connection, shared for outbound push.
+type reverbSession struct {
+	conn   *websocket.Conn
+	mu     sync.Mutex
+	closed bool
+}
+
+func (s *reverbSession) send(b []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return fmt.Errorf("reverb session closed")
+	}
+	return s.conn.WriteMessage(websocket.TextMessage, b)
+}
+
+func (s *reverbSession) sendRaw(messageType int, b []byte) error {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	if s.closed {
+		return fmt.Errorf("reverb session closed")
+	}
+	return s.conn.WriteMessage(messageType, b)
+}
+
+func (s *reverbSession) push(event string, data any) error {
+	payload, err := json.Marshal(pusherMessage{
+		Event:   "client-" + event,
+		Channel: reverbChannel,
+		Data:    mustMarshal(data),
+	})
+	if err != nil {
+		return err
+	}
+	return s.send(payload)
+}
+
+func (s *reverbSession) close() {
+	s.mu.Lock()
+	defer s.mu.Unlock()
+	s.closed = true
+}
 
 func (i *Instance) reverbListener(ctx context.Context, cfg *ReverbConfig) {
 	scheme := "ws"
@@ -108,9 +152,20 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 		Data:  mustMarshal(subData),
 	})
 
-	if err := conn.WriteMessage(websocket.TextMessage, sub); err != nil {
+	sess := &reverbSession{conn: conn}
+	if err := sess.send(sub); err != nil {
 		return fmt.Errorf("subscribe: %w", err)
 	}
+
+	i.reverbMu.Lock()
+	i.currentPusher = sess.push
+	i.reverbMu.Unlock()
+	defer func() {
+		i.reverbMu.Lock()
+		i.currentPusher = nil
+		i.reverbMu.Unlock()
+		sess.close()
+	}()
 
 	ping := time.NewTicker(pingInterval)
 	defer ping.Stop()
@@ -137,7 +192,7 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 	for {
 		select {
 		case <-ctx.Done():
-			conn.WriteMessage(websocket.CloseMessage,
+			sess.sendRaw(websocket.CloseMessage,
 				websocket.FormatCloseMessage(websocket.CloseNormalClosure, ""))
 			return nil
 
@@ -149,33 +204,12 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 				Event: "pusher:ping",
 				Data:  mustMarshal(map[string]any{}),
 			})
-			if err := conn.WriteMessage(websocket.TextMessage, p); err != nil {
+			if err := sess.send(p); err != nil {
 				return fmt.Errorf("ping: %w", err)
 			}
 
 		case msg := <-msgs:
 			i.handleReverbMessage(msg, reverbChannel)
-
-		case out := <-i.reverbOutbound:
-			payload, err := json.Marshal(pusherMessage{
-				Event:   "client-" + out.event,
-				Channel: reverbChannel,
-				Data:    mustMarshal(out.data),
-			})
-			if err != nil {
-				log.Printf("[Reverb] Failed to marshal outbound event %q: %v", out.event, err)
-				if out.result != nil {
-					out.result <- err
-				}
-				continue
-			}
-			writeErr := conn.WriteMessage(websocket.TextMessage, payload)
-			if out.result != nil {
-				out.result <- writeErr
-			}
-			if writeErr != nil {
-				return fmt.Errorf("send %q: %w", out.event, writeErr)
-			}
 		}
 	}
 }
