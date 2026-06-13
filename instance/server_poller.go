@@ -49,9 +49,7 @@ func (i *Instance) startServerNodePoller(
 		return
 	}
 
-	i.statusLock.Lock()
 	i.serverPoller = task
-	i.statusLock.Unlock()
 
 	// Trigger listener: fires an immediate sync when a "server_change" event
 	// arrives over Reverb, then resets the task so the next scheduled fire
