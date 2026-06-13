@@ -22,17 +22,19 @@ const serverStatusReportInterval = 5 * time.Second
 // of how many nodes run on this server.
 func (i *Instance) startServerStatusTask(
 	client *api.Client,
-	_ func(string, any) error,
-	_ int,
 ) {
-	task := scheduler.NewWithDelay("[ServerStatus]", "server_status", serverStatusReportInterval, func() error {
-		i.reportServerStatus(client)
-		return nil
-	})
+	task := scheduler.New(
+		"[ServerStatus]",
+		"server_status",
+		&scheduler.Periodic{
+			Interval: serverStatusReportInterval,
+			Execute: func() error {
+				return i.reportServerStatus(client)
+			},
+		},
+	)
 
-	i.statusLock.Lock()
 	i.serverStatusTask = task
-	i.statusLock.Unlock()
 
 	go func() {
 		if err := task.Start(); err != nil {
@@ -41,7 +43,7 @@ func (i *Instance) startServerStatusTask(
 	}()
 }
 
-func (i *Instance) reportServerStatus(client *api.Client) {
+func (i *Instance) reportServerStatus(client *api.Client) error {
 	s := monitor.Collect()
 	status := &api.ServerStatus{
 		CPU:         s.CPU,
@@ -70,13 +72,15 @@ func (i *Instance) reportServerStatus(client *api.Client) {
 		}
 		if err := pusher("server_status", payload); err == nil {
 			log.Printf("[ServerStatus] Pushed server status via Reverb")
-			return
+			return nil
 		}
 	}
 
 	if err := client.ReportServerStatus(status); err != nil {
 		log.Printf("[ServerStatus] Report failed: %v", err)
+		return err
 	}
+	return nil
 }
 
 // updateServerStatusInterval previously kept the status task's interval in
