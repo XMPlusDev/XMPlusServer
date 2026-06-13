@@ -158,7 +158,7 @@ func (i *Instance) reverbSession(ctx context.Context, conn *websocket.Conn, cfg 
 
 		case out := <-i.reverbOutbound:
 			payload, err := json.Marshal(pusherMessage{
-				Event:   out.event,
+				Event:   "client-" + out.event,
 				Channel: reverbChannel,
 				Data:    mustMarshal(out.data),
 			})

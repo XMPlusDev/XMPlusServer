@@ -258,8 +258,10 @@ func (i *Instance) Start() error {
 		return fmt.Errorf("ApiConfig.ServerID is required — XMRay only supports server mode")
 	}
 
+	log.Printf("[Reverb] config: %d entries: %+v", len(i.instanceConfig.ReverbConfig), i.instanceConfig.ReverbConfig)
 	for _, cfg := range i.instanceConfig.ReverbConfig {
 		if cfg == nil || !cfg.Enable {
+			log.Printf("[Reverb] skipping entry: %+v", cfg)
 			continue
 		}
 		ctx, cancel := context.WithCancel(context.Background())
