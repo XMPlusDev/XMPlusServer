@@ -283,7 +283,9 @@ func (i *Instance) handleReverbMessage(msg pusherMessage, channel string) {
 		// server node sync without waiting for the next scheduled poll.
 		select {
 		case i.serverPollTrigger <- struct{}{}:
+			log.Printf("[Reverb] server_updated received — queued server poll trigger")
 		default:
+			log.Printf("[Reverb] server_updated received — poll trigger already queued")
 		}
 	}
 }

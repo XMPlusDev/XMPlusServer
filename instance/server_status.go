@@ -71,7 +71,7 @@ func (i *Instance) reportServerStatus(client *api.Client) error {
 			Data:     status,
 		}
 		if err := pusher("server_status", payload); err == nil {
-			log.Printf("[ServerStatus] Pushed server status via Reverb")
+			//log.Printf("[ServerStatus] Pushed server status via Reverb")
 			return nil
 		}
 	}
