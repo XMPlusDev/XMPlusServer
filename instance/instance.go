@@ -273,9 +273,8 @@ func (i *Instance) Start() error {
 			}
 		}
 
-		i.startServerNodePoller(rootClient, controllerConfig, pusher, resp.PollInterval)
-
 		i.startServerStatusTask(rootClient)
+		i.startServerNodePoller(rootClient, controllerConfig, pusher, resp.PollInterval)
 
 	} else {
 		return fmt.Errorf("ApiConfig.ServerID is required — XMRay only supports server mode")
