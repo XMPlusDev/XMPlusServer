@@ -46,12 +46,15 @@ type reverbSession struct {
 	closed bool
 }
 
+const reverbWriteTimeout = 10 * time.Second
+
 func (s *reverbSession) send(b []byte) error {
 	s.mu.Lock()
 	defer s.mu.Unlock()
 	if s.closed {
 		return fmt.Errorf("reverb session closed")
 	}
+	s.conn.SetWriteDeadline(time.Now().Add(reverbWriteTimeout))
 	return s.conn.WriteMessage(websocket.TextMessage, b)
 }
 
@@ -61,6 +64,7 @@ func (s *reverbSession) sendRaw(messageType int, b []byte) error {
 	if s.closed {
 		return fmt.Errorf("reverb session closed")
 	}
+	s.conn.SetWriteDeadline(time.Now().Add(reverbWriteTimeout))
 	return s.conn.WriteMessage(messageType, b)
 }
 
