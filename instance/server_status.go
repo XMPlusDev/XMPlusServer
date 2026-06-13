@@ -78,7 +78,6 @@ func (i *Instance) reportServerStatus(client *api.Client) error {
 
 	if err := client.ReportServerStatus(status); err != nil {
 		log.Printf("[ServerStatus] Report failed: %v", err)
-		return err
 	}
 	return nil
 }
