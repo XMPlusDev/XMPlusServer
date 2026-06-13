@@ -185,6 +185,18 @@ func (c *Controller) Close() error {
 	log.Printf("%s Closing %d task schedulers", c.logPrefix(), c.taskManager.Count())
 	c.triggerCancel()
 	c.nodeManager.DeleteInboundLimiter(c.Tag)
+	c.nodeManager.RemoveBlockingRules(c.Tag)
+	if err := c.nodeManager.RemoveTag(c.Tag); err != nil {
+		log.Printf("%s Close RemoveTag: %v", c.logPrefix(), err)
+	}
+	if c.Relay {
+		if err := c.nodeManager.RemoveRelayRules(c.RelayTag, c.subscriptionList); err != nil {
+			log.Printf("%s Close RemoveRelayRules: %v", c.logPrefix(), err)
+		}
+		if err := c.nodeManager.RemoveRelayTag(c.RelayTag, c.subscriptionList); err != nil {
+			log.Printf("%s Close RemoveRelayTag: %v", c.logPrefix(), err)
+		}
+	}
 	return c.taskManager.CloseAll()
 }
 
