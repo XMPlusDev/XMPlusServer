@@ -27,17 +27,7 @@ func (l *LegoCMD) Run(CertMode string, CertDomain string, Email string) error {
 	account, client := setup(accountsStorage)
 	setupChallenges(CertMode, CertDomain, l, client)
 
-	if account.Registration == nil {
-		reg, err := client.Registration.Register(context.Background(), registration.RegisterOptions{TermsOfServiceAgreed: true})
-		if err != nil {
-			log.Panicf("Could not complete registration\n\t%v", err)
-		}
-		account.Registration = reg
-		if err = accountsStorage.Save(account); err != nil {
-			log.Panic(err)
-		}
-		fmt.Printf(rootPathWarningMessage, accountsStorage.GetRootPath())
-	}
+	registerAccount(accountsStorage, account, client)
 
 	certsStorage := NewCertificatesStorage(l.path)
 	certsStorage.CreateRootFolder()
@@ -49,6 +39,25 @@ func (l *LegoCMD) Run(CertMode string, CertDomain string, Email string) error {
 
 	certsStorage.SaveResource(cert)
 	return nil
+}
+
+// registerAccount registers the ACME account with the CA if it isn't
+// registered yet (e.g. first run, or a new account created because the
+// configured email address changed) and persists it to disk.
+func registerAccount(accountsStorage *AccountsStorage, account *Account, client *lego.Client) {
+	if account.Registration != nil {
+		return
+	}
+
+	reg, err := client.Registration.Register(context.Background(), registration.RegisterOptions{TermsOfServiceAgreed: true})
+	if err != nil {
+		log.Panicf("Could not complete registration\n\t%v", err)
+	}
+	account.Registration = reg
+	if err = accountsStorage.Save(account); err != nil {
+		log.Panic(err)
+	}
+	fmt.Printf(rootPathWarningMessage, accountsStorage.GetRootPath())
 }
 
 func obtainCertificate(domains []string, client *lego.Client) (*certificate.Resource, error) {

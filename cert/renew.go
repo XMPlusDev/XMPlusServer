@@ -12,12 +12,14 @@ import (
 )
 
 func (l *LegoCMD) Renew(CertMode string, CertDomain string, Email string) (bool, error) {
-	account, client := setup(NewAccountsStorage(l, Email))
+	accountsStorage := NewAccountsStorage(l, Email)
+	account, client := setup(accountsStorage)
 	setupChallenges(CertMode, CertDomain, l, client)
 
-	if account.Registration == nil {
-		log.Panicf("Account %s is not registered. Use 'run' to register a new account.\n", account.Email)
-	}
+	// The configured email may have changed since the certificate was last
+	// issued (new account dir, no registration on file yet). Register the
+	// new account with the CA instead of failing, so renewal can proceed.
+	registerAccount(accountsStorage, account, client)
 
 	return renewForDomains(CertDomain, client, NewCertificatesStorage(l.path))
 }
