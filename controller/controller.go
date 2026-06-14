@@ -519,7 +519,7 @@ func (c *Controller) certMonitor() error {
 }
 
 func (c *Controller) logPrefix() string {
-	return fmt.Sprintf("[%s] %s(NodeID=%d)", c.clientInfo.APIHost, c.nodeInfo.NodeType, c.nodeInfo.NodeID)
+	return fmt.Sprintf("[%s] %s(XMRay NodeID=%d)", c.clientInfo.APIHost, c.nodeInfo.NodeType, c.nodeInfo.NodeID)
 }
 
 func (c *Controller) buildNodeTag() string {
