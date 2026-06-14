@@ -61,6 +61,7 @@ type transitServer struct {
 	RType             string           `json:"type"`
 	NodeId            int              `json:"server_id"`
 	RAddress          string           `json:"address"`
+	RPort             string           `json:"server_port"`
 	RServerKey        string           `json:"server_key"`
 	RNetworkSettings  *json.RawMessage `json:"transportSettings"`
 	RSecuritySettings *json.RawMessage `json:"securitySettings"`
@@ -313,6 +314,7 @@ type RelayNodeInfo struct {
 	NodeType         string
 	NodeID           int
 	Address          string
+	Port             uint16
 	ListeningPort    uint16
 	SendThroughIP    string
 	SecurityType     string

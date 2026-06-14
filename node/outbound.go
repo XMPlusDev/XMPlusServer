@@ -95,7 +95,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}{
 			Vnext: []*conf.VLessOutboundVnext{{
 				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
-				Port:    uint16(nodeInfo.ListeningPort),
+				Port:    uint16(nodeInfo.Port),
 				Users:   []json.RawMessage{vUser},
 			}},
 		}
@@ -111,7 +111,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}{
 			Receivers: []*conf.VMessOutboundTarget{{
 				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
-				Port:    uint16(nodeInfo.ListeningPort),
+				Port:    uint16(nodeInfo.Port),
 				Users:   []json.RawMessage{userVmess},
 			}},
 		}
@@ -123,7 +123,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}{
 			Servers: []*conf.TrojanServerTarget{{
 				Address:  &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
-				Port:     uint16(nodeInfo.ListeningPort),
+				Port:     uint16(nodeInfo.Port),
 				Password: subscription.Passwd,
 				Email:    fmt.Sprintf("%s_%s", tag, subscription.Email),
 			}},
@@ -136,7 +136,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}{
 			Servers: []*conf.ShadowsocksServerTarget{{
 				Address:  &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
-				Port:     uint16(nodeInfo.ListeningPort),
+				Port:     uint16(nodeInfo.Port),
 				Password: Passwd,
 				Email:    fmt.Sprintf("%s_%s", tag, subscription.Email),
 				Cipher:   nodeInfo.Cipher,
@@ -150,7 +150,7 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 		}{
 			&conf.HysteriaClientConfig{
 				Address: &conf.Address{Address: net.ParseAddress(nodeInfo.Address)},
-				Port:    uint16(nodeInfo.ListeningPort),
+				Port:    uint16(nodeInfo.Port),
 				Version: nodeInfo.HysteriaSettings.Version,
 			},
 		}

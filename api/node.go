@@ -208,6 +208,12 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	nodeInfo.NodeType = s.RType
 	nodeInfo.NodeID = s.NodeId
 	nodeInfo.Address = s.RAddress
+	
+	connectPort, err := selectSinglePort(s.RPort)
+	if err != nil {
+		return nil, fmt.Errorf("failed to parse relay connection port: %w", err)
+	}
+	nodeInfo.Port = uint16(connectPort)
 
 	listeningPortStr := transportData.Get("listeningPort").MustString()
 	selectedPort, err := selectSinglePort(listeningPortStr)
