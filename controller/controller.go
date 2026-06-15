@@ -18,11 +18,6 @@ import (
 	"github.com/xmplusdev/xmray/subscription"
 )
 
-// serverStatusReportInterval is how often this controller reports live server
-// stats (cpu, mem, load, network speed, etc.) to the panel. Deliberately
-// decoupled from currentPollInterval — the panel caches/broadcasts each
-// report immediately and batches DB persistence separately, so reporting
-// frequently here keeps the admin dashboard live without adding DB load.
 const serverStatusReportInterval = 5 * time.Second
 
 type Controller struct {
@@ -53,7 +48,6 @@ type Controller struct {
 	triggerCancel           context.CancelFunc
 }
 
-// New returns a Controller. pusher is optional — pass nil to disable WebSocket push.
 func New(server *core.Instance, api api.API, config *node.Config, d *dispatcher.LimitingDispatcher, pusher func(string, any) error) *Controller {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Controller{
@@ -144,6 +138,7 @@ func (c *Controller) Start() error {
 		c.Tag,
 		c.nodeInfo.UpdateTime,
 		newNodeInfo.SpeedLimit,
+		newNodeInfo.IgnoreIPs,
 		subscriptionInfo,
 	); err != nil {
 		log.Print(err)
@@ -163,11 +158,7 @@ func (c *Controller) Start() error {
 		if err != nil {
 			log.Printf("%v", err)
 		}
-		// Server status (cpu/mem/load/network) is reported on its own fixed
-		// cadence — independent of (and typically much shorter than) the node
-		// poll interval — so the admin dashboard stays live. The panel caches
-		// and broadcasts these reports immediately and batches DB writes
-		// separately, so frequent reporting here is cheap.
+
 		c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "server_status", serverStatusReportInterval, c.serverMonitor))
 	}
 
@@ -353,10 +344,14 @@ func (c *Controller) apiMonitor() (err error) {
 				log.Printf("%s Controller APIMonitor DeleteInboundLimiter: %v", c.LogPrefix, err)
 				return nil
 			}
-			if err := c.nodeManager.AddInboundLimiter(c.Tag, newNodeInfo.UpdateTime, newNodeInfo.SpeedLimit, newSubscriptionInfo); err != nil {
+			if err := c.nodeManager.AddInboundLimiter(c.Tag, newNodeInfo.UpdateTime, newNodeInfo.SpeedLimit, newNodeInfo.IgnoreIPs, newSubscriptionInfo); err != nil {
 				log.Printf("%s Controller APIMonitor AddInboundLimiter: %v", c.LogPrefix, err)
 			}
 		} else {
+			if err := c.nodeManager.UpdateNodeInfo(c.Tag, newNodeInfo.SpeedLimit, newNodeInfo.IgnoreIPs); err != nil {
+				log.Printf("%s Controller APIMonitor UpdateNodeInfo: %v", c.LogPrefix, err)
+			}
+
 			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
 			if len(deleted) > 0 {
 				deletedEmail := subscription.FormatEmails(deleted, oldTag)

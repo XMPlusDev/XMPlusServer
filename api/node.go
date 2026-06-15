@@ -121,6 +121,7 @@ func (c *Client) NodeResponse(s *serverConfig) (*NodeInfo, error) {
 	nodeInfo.RelayNodeID = int(s.RelayNodeId)
 	nodeInfo.RelayType = int(s.RelayType)
 	nodeInfo.SpeedLimit = uint64(s.Speedlimit * 1000000 / 8)
+	nodeInfo.IgnoreIPs = s.IgnoreIPs
 	nodeInfo.UpdateTime = int(s.UpdateInterval)
 	nodeInfo.Sniffing = transportData.Get("sniffing").MustBool()
 	nodeInfo.ListeningIP = transportData.Get("listeningIP").MustString()

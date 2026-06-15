@@ -39,12 +39,16 @@ func NewManager(server *core.Instance, d *dispatcher.LimitingDispatcher) *Manage
 	}
 }
 
-func (m *Manager) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, subscriptionList *[]api.SubscriptionInfo) error {
-	return m.dispatcher.AddInboundLimiter(tag, expiry, nodeSpeedLimit, subscriptionList)
+func (m *Manager) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, ignoreIPs []string, subscriptionList *[]api.SubscriptionInfo) error {
+	return m.dispatcher.AddInboundLimiter(tag, expiry, nodeSpeedLimit, ignoreIPs, subscriptionList)
 }
 
 func (m *Manager) UpdateInboundLimiter(tag string, updatedSubscriptionList *[]api.SubscriptionInfo) error {
 	return m.dispatcher.UpdateInboundLimiter(tag, updatedSubscriptionList)
+}
+
+func (m *Manager) UpdateNodeInfo(tag string, nodeSpeedLimit uint64, ignoreIPs []string) error {
+	return m.dispatcher.UpdateNodeInfo(tag, nodeSpeedLimit, ignoreIPs)
 }
 
 func (m *Manager) DeleteInboundLimiter(tag string) error {

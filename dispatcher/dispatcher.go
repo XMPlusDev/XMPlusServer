@@ -277,12 +277,16 @@ func (ld *LimitingDispatcher) DispatchLink(ctx context.Context, dest net.Destina
 	return ld.inner.DispatchLink(ctx, dest, wrapped)
 }
 
-func (ld *LimitingDispatcher) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, subscriptionList *[]api.SubscriptionInfo) error {
-	return ld.limiter.AddInboundLimiter(tag, expiry, nodeSpeedLimit, subscriptionList)
+func (ld *LimitingDispatcher) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, ignoreIPs []string, subscriptionList *[]api.SubscriptionInfo) error {
+	return ld.limiter.AddInboundLimiter(tag, expiry, nodeSpeedLimit, ignoreIPs, subscriptionList)
 }
 
 func (ld *LimitingDispatcher) UpdateInboundLimiter(tag string, updatedSubscriptionList *[]api.SubscriptionInfo) error {
 	return ld.limiter.UpdateInboundLimiter(tag, updatedSubscriptionList)
+}
+
+func (ld *LimitingDispatcher) UpdateNodeInfo(tag string, nodeSpeedLimit uint64, ignoreIPs []string) error {
+	return ld.limiter.UpdateNodeInfo(tag, nodeSpeedLimit, ignoreIPs)
 }
 
 func (ld *LimitingDispatcher) DeleteInboundLimiter(tag string) error {

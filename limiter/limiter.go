@@ -36,6 +36,7 @@ type IPData struct {
 type InboundInfo struct {
 	Tag              string
 	NodeSpeedLimit   uint64
+	IgnoreIPs        []string
 	SubscriptionInfo *sync.Map // key: email → SubscriptionInfo
 	BucketHub        *sync.Map // key: email → *rate.Limiter
 	GlobalIPLimit    struct {
@@ -82,10 +83,11 @@ func (l *Limiter) Close() {
 	}
 }
 
-func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, subscriptionList *[]api.SubscriptionInfo) error {
+func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint64, ignoreIPs []string, subscriptionList *[]api.SubscriptionInfo) error {
 	inboundInfo := &InboundInfo{
 		Tag:            tag,
 		NodeSpeedLimit: nodeSpeedLimit,
+		IgnoreIPs:      ignoreIPs,
 		BucketHub:      new(sync.Map),
 	}
 
@@ -141,6 +143,20 @@ func (l *Limiter) UpdateInboundLimiter(tag string, updatedServiceList *[]api.Sub
 			inboundInfo.BucketHub.Delete(key)
 		}
 	}
+	return nil
+}
+
+// UpdateNodeInfo refreshes node-level limiter settings (speed limit and
+// ignore-IP list) in-place, without recreating subscription state or Redis
+// wiring. Used when the node info changes but the inbound tag stays the same.
+func (l *Limiter) UpdateNodeInfo(tag string, nodeSpeedLimit uint64, ignoreIPs []string) error {
+	value, ok := l.InboundInfo.Load(tag)
+	if !ok {
+		return fmt.Errorf("no limiter found for tag %s", tag)
+	}
+	inboundInfo := value.(*InboundInfo)
+	inboundInfo.NodeSpeedLimit = nodeSpeedLimit
+	inboundInfo.IgnoreIPs = ignoreIPs
 	return nil
 }
 
@@ -250,7 +266,15 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 		ipLimit = u.IPLimit
 	}
 
-	if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
+	ignored := false
+	for _, ignoreip := range inboundInfo.IgnoreIPs {
+		if ignoreip == ip {
+			ignored = true
+			break
+		}
+	}
+
+	if !ignored && inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
 		if checkLimit(inboundInfo, email, uid, ip, ipLimit, tag) {
 			return nil, false, true
 		}

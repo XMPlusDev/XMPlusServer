@@ -41,8 +41,9 @@ type PostData struct {
 type serverConfig struct {
 	server        `json:"server"`
 	transitServer `json:"transit_server"`
-	UpdateInterval int `json:"update_interval"`
-	Version        int `json:"api_version"`
+	UpdateInterval int      `json:"update_interval"`
+	Version        int      `json:"api_version"`
+	IgnoreIPs      []string `json:"ignore_ips"`
 }
 
 type server struct {
@@ -282,6 +283,7 @@ type NodeInfo struct {
 	RelayNodeID      int
 	RelayType        int
 	SpeedLimit       uint64
+	IgnoreIPs        []string
 	UpdateTime       int
 	Sniffing         bool
 	ListeningIP      string
