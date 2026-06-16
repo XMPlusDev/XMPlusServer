@@ -125,7 +125,6 @@ func (l *LegoCMD) HTTPCert(CertMode string, CertDomain string, Email string) (Ce
 				return "", "", fmt.Errorf("failed to stop %s: %v", stoppedService.Name, err)
 			}
 			defer func() {
-				fmt.Printf("Restarting %s...\n", stoppedService.Name)
 				if err := startService(stoppedService.Name); err != nil {
 					fmt.Printf("Failed to restart %s: %v\n", stoppedService.Name, err)
 				}
@@ -168,7 +167,6 @@ func (l *LegoCMD) RenewCert(CertMode string, CertDomain string, Email string) (C
 				return "", "", false, fmt.Errorf("failed to stop %s: %v", stoppedService.Name, err)
 			}
 			defer func() {
-				fmt.Printf("Restarting %s...\n", stoppedService.Name)
 				if err := startService(stoppedService.Name); err != nil {
 					fmt.Printf("Failed to restart %s: %v\n", stoppedService.Name, err)
 				}
