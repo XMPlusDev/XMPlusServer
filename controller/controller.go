@@ -24,10 +24,10 @@ type Controller struct {
 	server     *core.Instance
 	config     *node.Config
 	dispatcher *dispatcher.LimitingDispatcher
-	clientInfo  api.ClientInfo
-	client      api.API
-	nodeInfo    *api.NodeInfo
-	pusher      func(event string, data any) error
+	clientInfo api.ClientInfo
+	client     api.API
+	nodeInfo   *api.NodeInfo
+	pusher     func(event string, data any) error
 
 	relaynodeInfo *api.RelayNodeInfo
 	Tag           string
@@ -51,11 +51,11 @@ type Controller struct {
 func New(server *core.Instance, api api.API, config *node.Config, d *dispatcher.LimitingDispatcher, pusher func(string, any) error) *Controller {
 	ctx, cancel := context.WithCancel(context.Background())
 	return &Controller{
-		server:     server,
-		config:     config,
-		client:     api,
-		dispatcher: d,
-		pusher:     pusher,
+		server:                  server,
+		config:                  config,
+		client:                  api,
+		dispatcher:              d,
+		pusher:                  pusher,
 		taskManager:             scheduler.NewManager(),
 		nodeManager:             node.NewManager(server, d),
 		subManager:              subscription.NewManager(server, api, d),
@@ -149,7 +149,7 @@ func (c *Controller) Start() error {
 
 	nodePusher := c.nodePusher()
 
-	c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "node", c.currentPollInterval, c.apiMonitor))	
+	c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "node", c.currentPollInterval, c.apiMonitor))
 	c.taskManager.Add(scheduler.NewWithDelay(c.LogPrefix, "subscriptions", c.currentPollInterval, func() error {
 		return c.subManager.SubscriptionMonitor(c.Tag, c.LogPrefix, nodePusher)
 	}))
@@ -257,6 +257,23 @@ func (c *Controller) pollInterval() time.Duration {
 	return time.Duration(c.nodeInfo.UpdateTime) * time.Second
 }
 
+// nodeInfoChangedStructurally reports whether old and new NodeInfo differ in
+// a field that requires rebuilding the xray-core inbound/outbound (e.g. port,
+// protocol, transport, or TLS settings). SpeedLimit, IgnoreIPs, and UpdateTime
+// can all be applied in-place via UpdateNodeInfo without dropping connections,
+// so they're excluded from the comparison to avoid an unnecessary ~30s outage
+// on every minor poll-cycle change.
+func nodeInfoChangedStructurally(old, new *api.NodeInfo) bool {
+	if old == nil || new == nil {
+		return true
+	}
+	o, n := *old, *new
+	o.SpeedLimit, n.SpeedLimit = 0, 0
+	o.IgnoreIPs, n.IgnoreIPs = nil, nil
+	o.UpdateTime, n.UpdateTime = 0, 0
+	return !reflect.DeepEqual(o, n)
+}
+
 func (c *Controller) apiMonitor() (err error) {
 	nodeInfoChanged := true
 	newNodeInfo, err := c.client.GetNodeInfo()
@@ -296,14 +313,14 @@ func (c *Controller) apiMonitor() (err error) {
 		c.Relay = false
 	}
 
-	if nodeInfoChanged && !reflect.DeepEqual(c.nodeInfo, newNodeInfo) {
+	if nodeInfoChanged && nodeInfoChangedStructurally(c.nodeInfo, newNodeInfo) {
 		oldTag := c.Tag
+		if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
+			log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
+		}
 		if err := c.nodeManager.RemoveTag(oldTag); err != nil {
 			log.Printf("%s Controller APIMonitor RemoveInboundTag: %v", c.LogPrefix, err)
 			return fmt.Errorf("Controller APIMonitor RemoveInboundTag: %w", err)
-		}
-		if err := c.nodeManager.RemoveBlockingRules(oldTag); err != nil {
-			log.Printf("%s Controller APIMonitor RemoveBlockingRules: %v", c.LogPrefix, err)
 		}
 
 		c.nodeInfo = newNodeInfo
@@ -389,60 +406,87 @@ func (c *Controller) apiMonitor() (err error) {
 			}
 		}
 
-	} else if subscriptionChanged {
-		if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && !c.Relay {
-			newRelayNodeInfo, err := c.client.GetTransitNode()
-			if err != nil {
-				log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
-				return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+	} else {
+		if nodeInfoChanged {
+			c.nodeInfo = newNodeInfo
+			if err := c.nodeManager.UpdateNodeInfo(c.Tag, newNodeInfo.SpeedLimit, newNodeInfo.IgnoreIPs); err != nil {
+				log.Printf("%s Controller APIMonitor UpdateNodeInfo: %v", c.LogPrefix, err)
 			}
-			c.relaynodeInfo = newRelayNodeInfo
-			c.RelayTag = c.buildRNodeTag()
 
-			if err := c.nodeManager.AddRelayTag(newRelayNodeInfo, c.RelayTag, c.Tag, newSubscriptionInfo); err != nil {
-				log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
-				return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
-			}
-			c.Relay = true
-		}
-
-		deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
-
-		if len(deleted) > 0 {
-			deletedEmail := subscription.FormatEmails(deleted, c.Tag)
-			if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
-				log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
-			} else {
-				log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
-				c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
-			}
-		}
-
-		if len(added) > 0 {
-			if err := c.subManager.AddNewSubscription(&added, c.nodeInfo, c.Tag); err != nil {
-				log.Printf("%s Error adding subscriptions: %v", c.LogPrefix, err)
-			} else {
-				log.Printf("%s Added %d subscription(s)", c.LogPrefix, len(added))
-				if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &added); err != nil {
-					log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
+			newInterval := c.pollInterval()
+			if c.currentPollInterval != newInterval {
+				for _, tag := range []string{"node", "subscriptions"} {
+					if t := c.taskManager.GetTask(tag); t != nil {
+						if err := t.RestartWithInterval(newInterval); err != nil {
+							log.Printf("%s Failed to restart %s task: %v", c.LogPrefix, tag, err)
+						} else {
+							log.Printf("%s %s task restarted with interval %v", c.LogPrefix, tag, newInterval)
+						}
+					}
+				}
+				c.currentPollInterval = newInterval
+				select {
+				case c.intervalChangeCh <- newInterval:
+				default:
 				}
 			}
 		}
 
-		if len(modified) > 0 {
-			deletedEmail := subscription.FormatEmails(modified, c.Tag)
-			if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
-				log.Printf("%s Error removing modified subscriptions: %v", c.LogPrefix, err)
-			} else {
-				c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
+		if subscriptionChanged {
+			if newNodeInfo.RelayType == 1 && newNodeInfo.RelayNodeID > 0 && !c.Relay {
+				newRelayNodeInfo, err := c.client.GetTransitNode()
+				if err != nil {
+					log.Printf("%s Controller APIMonitor GetTransitNode: %v", c.LogPrefix, err)
+					return fmt.Errorf("Controller APIMonitor GetTransitNode: %w", err)
+				}
+				c.relaynodeInfo = newRelayNodeInfo
+				c.RelayTag = c.buildRNodeTag()
+
+				if err := c.nodeManager.AddRelayTag(newRelayNodeInfo, c.RelayTag, c.Tag, newSubscriptionInfo); err != nil {
+					log.Printf("%s Controller APIMonitor AddRelayTag: %v", c.LogPrefix, err)
+					return fmt.Errorf("Controller APIMonitor AddRelayTag: %w", err)
+				}
+				c.Relay = true
 			}
-			if err := c.subManager.AddNewSubscription(&modified, c.nodeInfo, c.Tag); err != nil {
-				log.Printf("%s Error re-adding modified subscriptions: %v", c.LogPrefix, err)
+
+			deleted, added, modified := subscription.Compare(c.subscriptionList, newSubscriptionInfo)
+
+			if len(deleted) > 0 {
+				deletedEmail := subscription.FormatEmails(deleted, c.Tag)
+				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
+					log.Printf("%s Error removing subscriptions: %v", c.LogPrefix, err)
+				} else {
+					log.Printf("%s Removed %d subscription(s)", c.LogPrefix, len(deleted))
+					c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
+				}
 			}
-			if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &modified); err != nil {
-				log.Printf("%s Error updating limiter for modified subscriptions: %v", c.LogPrefix, err)
+
+			if len(added) > 0 {
+				if err := c.subManager.AddNewSubscription(&added, c.nodeInfo, c.Tag); err != nil {
+					log.Printf("%s Error adding subscriptions: %v", c.LogPrefix, err)
+				} else {
+					log.Printf("%s Added %d subscription(s)", c.LogPrefix, len(added))
+					if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &added); err != nil {
+						log.Printf("%s Error updating limiter for new subscriptions: %v", c.LogPrefix, err)
+					}
+				}
 			}
-			log.Printf("%s Modified %d subscription(s)", c.LogPrefix, len(modified))
+
+			if len(modified) > 0 {
+				deletedEmail := subscription.FormatEmails(modified, c.Tag)
+				if err := c.subManager.Remove(deletedEmail, c.Tag); err != nil {
+					log.Printf("%s Error removing modified subscriptions: %v", c.LogPrefix, err)
+				} else {
+					c.nodeManager.DeleteSubscriptionBuckets(c.Tag, deletedEmail)
+				}
+				if err := c.subManager.AddNewSubscription(&modified, c.nodeInfo, c.Tag); err != nil {
+					log.Printf("%s Error re-adding modified subscriptions: %v", c.LogPrefix, err)
+				}
+				if err := c.nodeManager.UpdateInboundLimiter(c.Tag, &modified); err != nil {
+					log.Printf("%s Error updating limiter for modified subscriptions: %v", c.LogPrefix, err)
+				}
+				log.Printf("%s Modified %d subscription(s)", c.LogPrefix, len(modified))
+			}
 		}
 	}
 
@@ -487,7 +531,7 @@ func (c *Controller) certMonitor() error {
 	}
 	switch c.nodeInfo.TlsSettings.CertMode {
 	case "dns":
-		pn :=  c.config.CertConfig.Provider
+		pn := c.config.CertConfig.Provider
 		if c.nodeInfo.TlsSettings.DnsProvider != "" {
 			pn = c.nodeInfo.TlsSettings.DnsProvider
 		}
@@ -497,7 +541,7 @@ func (c *Controller) certMonitor() error {
 		lego, err := cert.NewForNode(c.config.CertConfig, pn)
 		if err != nil {
 			return err
-		}	
+		}
 		if _, _, _, err := lego.RenewCert(c.nodeInfo.TlsSettings.CertMode, c.nodeInfo.TlsSettings.ServerName, c.nodeInfo.TlsSettings.CertEmail); err != nil {
 			log.Printf("%s cert renew failed: %v", c.LogPrefix, err)
 		}

@@ -18,7 +18,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/counter"
 )
 
 type SubscriptionInfo struct {
@@ -292,9 +291,10 @@ func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate
 }
 
 type pendingCounter struct {
-	storage *counter.TrafficStorage
-	up      int64
-	down    int64
+	up      stats.Counter
+	down    stats.Counter
+	upVal   int64
+	downVal int64
 }
 
 type PendingTraffic struct {
@@ -302,7 +302,7 @@ type PendingTraffic struct {
 	Counters []pendingCounter
 }
 
-func (l *Limiter) DrainDeltas(tag string, tc *counter.TrafficCounter) *PendingTraffic {
+func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
 	value, ok := l.InboundInfo.Load(tag)
 	if !ok {
 		return nil
@@ -315,8 +315,16 @@ func (l *Limiter) DrainDeltas(tag string, tc *counter.TrafficCounter) *PendingTr
 		email := k.(string)
 		sub := v.(SubscriptionInfo)
 
-		up := tc.GetUpCount(email)
-		down := tc.GetDownCount(email)
+		upCounter := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>uplink")
+		downCounter := l.stm.GetCounter("user>>>" + email + ">>>traffic>>>downlink")
+
+		var up, down int64
+		if upCounter != nil {
+			up = upCounter.Value()
+		}
+		if downCounter != nil {
+			down = downCounter.Value()
+		}
 		if up == 0 && down == 0 {
 			return true
 		}
@@ -327,11 +335,9 @@ func (l *Limiter) DrainDeltas(tag string, tc *counter.TrafficCounter) *PendingTr
 			Download: down,
 		})
 
-		if s := tc.GetCounter(email); s != nil {
-			pending.Counters = append(pending.Counters, pendingCounter{
-				storage: s, up: up, down: down,
-			})
-		}
+		pending.Counters = append(pending.Counters, pendingCounter{
+			up: upCounter, down: downCounter, upVal: up, downVal: down,
+		})
 		return true
 	})
 
@@ -346,8 +352,12 @@ func (l *Limiter) ResetTraffic(pending *PendingTraffic) {
 		return
 	}
 	for _, pc := range pending.Counters {
-		pc.storage.UpCounter.Add(-pc.up)
-		pc.storage.DownCounter.Add(-pc.down)
+		if pc.up != nil {
+			pc.up.Add(-pc.upVal)
+		}
+		if pc.down != nil {
+			pc.down.Add(-pc.downVal)
+		}
 	}
 }
 

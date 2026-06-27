@@ -3,18 +3,19 @@ package counter
 import (
 	"github.com/xtls/xray-core/common"
 	"github.com/xtls/xray-core/common/buf"
+	"github.com/xtls/xray-core/features/stats"
 )
 
 type StatWriter struct {
 	Writer  buf.Writer
-	Storage *TrafficStorage
+	Counter stats.Counter
 }
 
 func (w *StatWriter) WriteMultiBuffer(mb buf.MultiBuffer) error {
 	n := int64(mb.Len())
 	err := w.Writer.WriteMultiBuffer(mb)
-	if n > 0 {
-		w.Storage.DownCounter.Add(n)
+	if n > 0 && w.Counter != nil {
+		w.Counter.Add(n)
 	}
 	return err
 }
@@ -24,7 +25,7 @@ func (w *StatWriter) Interrupt()   { common.Interrupt(w.Writer) }
 
 type StatReader struct {
 	Reader  buf.TimeoutReader
-	Storage *TrafficStorage
+	Counter stats.Counter
 }
 
 func (r *StatReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
@@ -32,8 +33,8 @@ func (r *StatReader) ReadMultiBuffer() (buf.MultiBuffer, error) {
 	if err != nil {
 		return nil, err
 	}
-	if mb.Len() > 0 {
-		r.Storage.UpCounter.Add(int64(mb.Len()))
+	if mb.Len() > 0 && r.Counter != nil {
+		r.Counter.Add(int64(mb.Len()))
 	}
 	return mb, nil
 }

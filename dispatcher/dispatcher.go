@@ -7,7 +7,6 @@ import (
 	netModule "net"
 	"reflect"
 	"strings"
-	"sync"
 	"unsafe"
 
 	"github.com/xtls/xray-core/common"
@@ -20,6 +19,7 @@ import (
 	"github.com/xtls/xray-core/features"
 	"github.com/xtls/xray-core/features/inbound"
 	"github.com/xtls/xray-core/features/routing"
+	"github.com/xtls/xray-core/features/stats"
 	"github.com/xtls/xray-core/proxy"
 	"github.com/xtls/xray-core/transport"
 	"golang.org/x/time/rate"
@@ -69,11 +69,13 @@ func RegisterOn(server *core.Instance, lim *limiter.Limiter) (*LimitingDispatche
 	}
 
 	ibm, _ := server.GetFeature(inbound.ManagerType()).(inbound.Manager)
+	stm, _ := server.GetFeature(stats.ManagerType()).(stats.Manager)
 
 	ld := &LimitingDispatcher{
 		inner:   inner,
 		limiter: lim,
 		ibm:     ibm,
+		stm:     stm,
 	}
 
 	if err := replaceFeature(server, routing.DispatcherType(), ld); err != nil {
@@ -102,10 +104,10 @@ func replaceFeature(server *core.Instance, targetType interface{}, ld *LimitingD
 }
 
 type LimitingDispatcher struct {
-	inner    routing.Dispatcher
-	limiter  *limiter.Limiter
-	ibm      inbound.Manager
-	counters sync.Map
+	inner   routing.Dispatcher
+	limiter *limiter.Limiter
+	ibm     inbound.Manager
+	stm     stats.Manager
 }
 
 func (ld *LimitingDispatcher) Type() interface{} { return routing.DispatcherType() }
@@ -206,15 +208,13 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 	}, nil
 }
 
-func (ld *LimitingDispatcher) getOrCreateCounter(tag string) *counter.TrafficCounter {
-	if v, ok := ld.counters.Load(tag); ok {
-		return v.(*counter.TrafficCounter)
+func (ld *LimitingDispatcher) userCounters(email string) (up stats.Counter, down stats.Counter) {
+	if ld.stm == nil {
+		return nil, nil
 	}
-	tc := counter.NewTrafficCounter()
-	if v, loaded := ld.counters.LoadOrStore(tag, tc); loaded {
-		return v.(*counter.TrafficCounter)
-	}
-	return tc
+	up, _ = stats.GetOrRegisterCounter(ld.stm, "user>>>"+email+">>>traffic>>>uplink")
+	down, _ = stats.GetOrRegisterCounter(ld.stm, "user>>>"+email+">>>traffic>>>downlink")
+	return up, down
 }
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
@@ -226,11 +226,10 @@ func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link)
 		return err
 	}
 
-	tc := ld.getOrCreateCounter(sc.info.tag)
-	storage := tc.GetCounter(sc.info.email)
+	upCounter, downCounter := ld.userCounters(sc.info.email)
 
-	link.Writer = &counter.StatWriter{Writer: link.Writer, Storage: storage}
-	link.Reader = &counter.StatReader{Reader: twr, Storage: storage}
+	link.Writer = &counter.StatWriter{Writer: link.Writer, Counter: upCounter}
+	link.Reader = &counter.StatReader{Reader: twr, Counter: downCounter}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
@@ -249,11 +248,10 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 		return link, err
 	}
 
-	tc := ld.getOrCreateCounter(sc.info.tag)
-	storage := tc.GetCounter(sc.info.email)
+	upCounter, downCounter := ld.userCounters(sc.info.email)
 
-	link.Writer = &counter.StatWriter{Writer: link.Writer, Storage: storage}
-	link.Reader = &counter.StatReader{Reader: twr, Storage: storage}
+	link.Writer = &counter.StatWriter{Writer: link.Writer, Counter: upCounter}
+	link.Reader = &counter.StatReader{Reader: twr, Counter: downCounter}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
@@ -307,11 +305,7 @@ func (ld *LimitingDispatcher) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) 
 }
 
 func (ld *LimitingDispatcher) DrainDeltas(tag string) *limiter.PendingTraffic {
-	tc, ok := ld.GetTrafficCounter(tag)
-	if !ok || tc == nil {
-		return nil
-	}
-	return ld.limiter.DrainDeltas(tag, tc)
+	return ld.limiter.DrainDeltas(tag)
 }
 
 func (ld *LimitingDispatcher) ResetTraffic(pending *limiter.PendingTraffic) {
@@ -319,16 +313,4 @@ func (ld *LimitingDispatcher) ResetTraffic(pending *limiter.PendingTraffic) {
 		return
 	}
 	ld.limiter.ResetTraffic(pending)
-}
-
-func (ld *LimitingDispatcher) GetTrafficCounter(tag string) (*counter.TrafficCounter, bool) {
-	v, ok := ld.counters.Load(tag)
-	if !ok {
-		return nil, false
-	}
-	return v.(*counter.TrafficCounter), true
-}
-
-func (ld *LimitingDispatcher) DeleteTrafficCounter(tag string) {
-	ld.counters.Delete(tag)
 }
