@@ -257,12 +257,6 @@ func (c *Controller) pollInterval() time.Duration {
 	return time.Duration(c.nodeInfo.UpdateTime) * time.Second
 }
 
-// nodeInfoChangedStructurally reports whether old and new NodeInfo differ in
-// a field that requires rebuilding the xray-core inbound/outbound (e.g. port,
-// protocol, transport, or TLS settings). SpeedLimit, IgnoreIPs, and UpdateTime
-// can all be applied in-place via UpdateNodeInfo without dropping connections,
-// so they're excluded from the comparison to avoid an unnecessary ~30s outage
-// on every minor poll-cycle change.
 func nodeInfoChangedStructurally(old, new *api.NodeInfo) bool {
 	if old == nil || new == nil {
 		return true

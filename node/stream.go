@@ -70,6 +70,7 @@ func applyCommonTransport(
 		kcpSettings := &conf.KCPConfig{}
 		if nodeKcp != nil {
 			kcpSettings.Mtu = &nodeKcp.Mtu
+			kcpSettings.Tti = &nodeKcp.Tti
 		}
 		streamSetting.KCPSettings = kcpSettings
 

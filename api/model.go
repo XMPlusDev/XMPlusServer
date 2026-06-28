@@ -42,7 +42,6 @@ type serverConfig struct {
 	server        `json:"server"`
 	transitServer `json:"transit_server"`
 	UpdateInterval int      `json:"update_interval"`
-	Version        int      `json:"api_version"`
 	IgnoreIPs      []string `json:"ignore_ips"`
 }
 
@@ -263,6 +262,7 @@ type GrpcSettings struct {
 
 type KcpSettings struct {
 	Mtu uint32
+	Tti uint32
 }
 
 type HysteriaSettings struct {

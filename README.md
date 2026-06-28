@@ -129,8 +129,8 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
 }
 
 ```
-
 </details>
+
 
 <details>
 <summary><strong>fallbacks fields</strong></summary>
@@ -145,9 +145,6 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
 
 </details>
 
-> Fallbacks are sourced exclusively from the panel API. If the panel returns none, no fallbacks are applied.
-
----
 
 #### TCP
 ```json
@@ -469,7 +466,12 @@ Choose names that blend in with real CDN traffic. Some suggestions:
   "transportProtocol": {
     "type": "kcp",
     "settings": {
-      "mtu": 1350
+      "mtu": 1350,
+	  "tti": 20,
+	  "uplinkCapacity": 5,
+      "downlinkCapacity": 20,
+	  "cwndMultiplier": 1,
+	  "maxSendingWindow": 1350
     }
   }
 }

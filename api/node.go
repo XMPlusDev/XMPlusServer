@@ -89,10 +89,6 @@ func (c *Client) GetNodeInfo() (*NodeInfo, error) {
 		return nil, fmt.Errorf("server Type cannot be empty")
 	}
 
-	if server.Version < 2605130 {
-		return nil, fmt.Errorf("update your panel to the latest version. Current: v%d", server.Version)
-	}
-
 	c.resp.Store(server)
 
 	nodeInfo, err := c.NodeResponse(server)
@@ -431,6 +427,9 @@ func parseNetworkSettings(
 		k := &KcpSettings{}
 		if mtu, err := transportSettings.Get("mtu").Int(); err == nil {
 			k.Mtu = uint32(mtu)
+		}
+		if tti, err := transportSettings.Get("tti").Int(); err == nil {
+			k.Tti = uint32(tti)
 		}
 		*kcp = k
 

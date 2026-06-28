@@ -218,22 +218,17 @@ func (ld *LimitingDispatcher) userCounters(email string) (up stats.Counter, down
 }
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
-	twr := &buf.TimeoutWrapperReader{Reader: link.Reader}
-	link.Reader = twr
-
 	sc, err := ld.resolveSession(ctx, link)
 	if err != nil || sc == nil {
 		return err
 	}
 
-	upCounter, downCounter := ld.userCounters(sc.info.email)
+	upCounter, _ := ld.userCounters(sc.info.email)
 
 	link.Writer = &counter.StatWriter{Writer: link.Writer, Counter: upCounter}
-	link.Reader = &counter.StatReader{Reader: twr, Counter: downCounter}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
-		link.Reader = ld.limiter.RateTimeoutReader(twr, sc.bucket)
 	}
 
 	return nil
