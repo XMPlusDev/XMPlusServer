@@ -98,7 +98,8 @@ Fallbacks redirect unrecognised or non-matching connections to another local ser
 
 <details>
 <summary><strong>Example of network settings with fallback settings</strong></summary>
-```
+
+```json
 {
   "encryption": "none",
   "decryption": "none",
