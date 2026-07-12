@@ -212,8 +212,8 @@ func (ld *LimitingDispatcher) userCounters(email string) (up stats.Counter, down
 	if ld.stm == nil {
 		return nil, nil
 	}
-	up, _ = stats.GetOrRegisterCounter(ld.stm, "user>>>"+email+">>>traffic>>>uplink")
-	down, _ = stats.GetOrRegisterCounter(ld.stm, "user>>>"+email+">>>traffic>>>downlink")
+	up, _ = ld.stm.GetOrRegisterCounter("user>>>"+email+">>>traffic>>>uplink")
+	down, _ = ld.stm.GetOrRegisterCounter("user>>>"+email+">>>traffic>>>downlink")
 	return up, down
 }
 

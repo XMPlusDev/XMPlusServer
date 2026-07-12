@@ -19,6 +19,7 @@ ApiConfig:                                        # API Configuraion
   ServerID: 1                                     # Important: The id of the server and not node id.
   Timeout: 30                                     # Connection time out. Cannot be higer than api update interval.
 CertConfig:                                       # Cert config for when cert mode is dns
+  Provider: cloudflare
   Providers:
     cloudflare:                                   # Provider name. eg, cloudflare. Set in panel tlsSettings - dnsProvider https://go-acme.github.io/lego/dns/index.html
       CertEnv:
@@ -26,8 +27,8 @@ CertConfig:                                       # Cert config for when cert mo
 RedisConfig:
   Enable: false                                   # Enable the global ip limit
   Network: tcp                                    # Redis protocol, tcp or unix
-  Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path
-  Username:                                       # Redis username
+  Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path (use your panel api address and redis port)
+  Username:                                       # Redis username leave empty
   Password:                                       # Redis password
   DB: 0                                           # Redis DB
   Timeout: 10                                     # Timeout for redis request
@@ -37,7 +38,7 @@ ReverbConfig:
     AppKey:                                       # REVERB_APP_KEY in .env for api /home/XMPlusPanel/.env
     AppSecret:                                    # REVERB_APP_SECRET in .env for api /home/XMPlusPanel/.env
     UseTLS: true                                  # Set to true if tls enabled for api
-InstanceConfig:
+InstanceConfig:                                   # Xray-core instance configuration
   LogConfig:
     Level: none                                   # Log level: none, error, warning, info, debug 
     AccessPath:                                   # /etc/XMRay/access.Log
@@ -54,7 +55,7 @@ InstanceConfig:
   OutboundConfig:
     Enable: false                                 # Use custom outbound config, ensure that you set the outbound.json correctly
     Path: /etc/XMRay/outbound.json                #/etc/XMRay/outbound.json  https://xtls.github.io/config/outbound.html
-  ConnectionConfig:                               # Policy Config  https://xtls.github.io/config/policy.html
+  ConnectionConfig:                               # Policy config https://xtls.github.io/config/policy.html
     Handshake: 8                                  # Seconds to complete a handshake before the connection is dropped. Xray default: 4
     ConnIdle: 120                                 # Seconds of inactivity before an idle connection is closed (0 = never). Xray default: 300
     UplinkOnly: 0                                 # Seconds to wait after the downlink closes before tearing down the connection (0 = close immediately). Xray default: 2
@@ -716,6 +717,9 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 	"dnsProvider": "cloudflare",
 	"certFile": "/etc/XMRay/node3.crt",
     "keyFile": "/etc/XMRay/node3.key",
+	"cipherSuites": "",
+	"minVersion": "1.2",
+	"maxVersion": "1.3",
     "fragment": "1,40-60,30-50",
     "serverName": "google.com",
     "fingerprint": "chrome",
@@ -742,6 +746,9 @@ Socket-level options applied to the underlying TCP/UDP socket. All fields are op
 	"dnsProvider": "cloudflare",
 	"certFile": "/etc/XMRay/node3.crt",
     "keyFile": "/etc/XMRay/node3.key",
+	"cipherSuites": "",
+	"minVersion": "1.2",
+	"maxVersion": "1.3",
     "fragment": "1,40-60,30-50",
     "serverName": "google.com",
     "fingerprint": "chrome",

@@ -589,10 +589,10 @@ func parseSecuritySettings(
 			tls.CipherSuites = v
 		}
 		if v, err := tlsData.Get("minVersion").String(); err == nil {
-			reality.MinVersion = v
+			tls.MinVersion = v
 		}
 		if v, err := tlsData.Get("maxVersion").String(); err == nil {
-			reality.MaxVersion = v
+			tls.MaxVersion = v
 		}
 		*tlsSettings = tls
 	}

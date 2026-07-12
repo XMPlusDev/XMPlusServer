@@ -12,8 +12,8 @@ CertConfig:                                       # Cert config for when cert mo
 RedisConfig:
   Enable: false                                   # Enable the global ip limit
   Network: tcp                                    # Redis protocol, tcp or unix
-  Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path
-  Username:                                       # Redis username
+  Addr: 127.0.0.1:6379                            # Redis server address, or unix socket path (use your panel api address and redis port)
+  Username:                                       # Redis username leave empty
   Password:                                       # Redis password
   DB: 0                                           # Redis DB
   Timeout: 10                                     # Timeout for redis request
