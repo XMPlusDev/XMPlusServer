@@ -108,7 +108,9 @@ type TlsSettings struct {
 	RejectUnknownSni     bool
 	VerifyPeerCertByName string
 	Alpn                 []string
-
+	CipherSuites         string
+	MinVersion           string
+	MaxVersion           string
 	ECHServerKeys        string
 	ECHConfigList        string
 	PinnedPeerCertSha256 string

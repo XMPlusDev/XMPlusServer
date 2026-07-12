@@ -116,7 +116,7 @@ func getCipherType(method string) shadowsocks.CipherType {
 	case "chacha20-poly1305", "chacha20-ietf-poly1305":
 		return shadowsocks.CipherType_CHACHA20_POLY1305
 	default:
-		log.Printf("Warning: unknown cipher method %s, defaulting to AES_128_GCM", method)
-		return shadowsocks.CipherType_AES_128_GCM
+		log.Printf("Warning: unknown cipher method %s, defaulting to AES_256_GCM", method)
+		return shadowsocks.CipherType_AES_256_GCM
 	}
 }

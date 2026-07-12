@@ -246,6 +246,10 @@ func getServiceOnPort(port string) *ServiceInfo {
 
 func identifyService(processName string) *ServiceInfo {
 	lower := strings.ToLower(processName)
+	// Never stop XMRay itself — cert renewal runs inside this process.
+	if strings.Contains(lower, "xmray") {
+		return nil
+	}
 	serviceMap := map[string]string{
 		"nginx":    "nginx",
 		"apache2":  "apache2",
@@ -261,7 +265,8 @@ func identifyService(processName string) *ServiceInfo {
 			return &ServiceInfo{Name: service, Command: processName}
 		}
 	}
-	return &ServiceInfo{Name: processName, Command: processName}
+	// Unknown process — don't stop it blindly.
+	return nil
 }
 
 func stopService(serviceName string) error {

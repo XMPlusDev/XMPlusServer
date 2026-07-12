@@ -585,6 +585,15 @@ func parseSecuritySettings(
 		if v, err := tlsData.Get("keyFile").String(); err == nil {
 			tls.KeyFile = v
 		}
+		if v, err := tlsData.Get("cipherSuites").String(); err == nil {
+			tls.CipherSuites = v
+		}
+		if v, err := tlsData.Get("minVersion").String(); err == nil {
+			reality.MinVersion = v
+		}
+		if v, err := tlsData.Get("maxVersion").String(); err == nil {
+			reality.MaxVersion = v
+		}
 		*tlsSettings = tls
 	}
 

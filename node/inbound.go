@@ -128,7 +128,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 	if err != nil {
 		return nil, fmt.Errorf("convert TransportProtocol failed: %s", err)
 	}
-	streamSetting.Network = &transportProtocol
+	streamSetting.Method = &transportProtocol
 
 	switch networkType {
 	case "hysteria", "hysteria2":
@@ -221,6 +221,15 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		tlsSettings.CurvePreferences = &curvePreferences
 		tlsSettings.Fingerprint = nodeInfo.TlsSettings.FingerPrint
 		tlsSettings.ECHServerKeys = nodeInfo.TlsSettings.ECHServerKeys
+		if nodeInfo.TlsSettings.MinVersion != "" {
+			tlsSettings.MinVersion = nodeInfo.TlsSettings.MinVersion
+		}
+		if nodeInfo.TlsSettings.MaxVersion != "" {
+			tlsSettings.MaxVersion = nodeInfo.TlsSettings.MaxVersion
+		}
+		if nodeInfo.TlsSettings.CipherSuites != "" {
+			tlsSettings.CipherSuites = nodeInfo.TlsSettings.CipherSuites
+		}
 		streamSetting.TLSSettings = tlsSettings
 	}
 
