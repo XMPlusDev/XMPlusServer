@@ -326,6 +326,45 @@ XHTTP is an HTTP/2 and HTTP/3 based transport that splits uplink and downlink tr
 ---
 
 <details>
+<summary><strong>Connection multiplexing (xmux)</strong></summary>
+
+`xmux` controls how the underlying HTTP connections are pooled and reused. It is set as a nested `xmux` object inside `settings`. On the client/relay side XMRay automatically wraps it in the required `extra` block, same as the obfuscation fields.
+
+```json
+{
+  "transportProtocol": {
+    "type": "xhttp",
+    "settings": {
+      "host": "tld.dev",
+      "path": "/",
+      "mode": "auto",
+      "xmux": {
+        "maxConcurrency": "16-32",
+        "maxConnections": "",
+        "cMaxReuseTimes": "0",
+        "hMaxRequestTimes": "600-900",
+        "hMaxReusableSecs": "1800-3000",
+        "hKeepAlivePeriod": 0
+      }
+    }
+  }
+}
+```
+
+| Field | Type | Default | Description |
+|---|---|---|---|
+| `maxConcurrency` | string | `"1-1"` | Range of concurrent requests allowed per underlying connection before a new one is opened. Format: `"min-max"` or a single value. Cannot be set together with `maxConnections` |
+| `maxConnections` | string | none | Range of the max number of underlying connections to keep open. Format: `"min-max"` or a single value. Cannot be set together with `maxConcurrency` |
+| `cMaxReuseTimes` | string | none | Range of times an underlying connection can be reused before being replaced. Format: `"min-max"` or a single value |
+| `hMaxRequestTimes` | string | `"600-900"` | Range of HTTP/2 or HTTP/3 requests allowed on a connection before it is rotated. Format: `"min-max"` or a single value |
+| `hMaxReusableSecs` | string | `"1800-3000"` | Range (seconds) a connection stays reusable before being rotated. Format: `"min-max"` or a single value |
+| `hKeepAlivePeriod` | int | `0` | TCP keep-alive period in seconds. `0` uses the system default |
+
+</details>
+
+---
+
+<details>
 <summary><strong>Padding obfuscation (CDN detection bypass)</strong></summary>
 
 These fields enable obfuscation of the padding pattern to bypass CDN-level traffic fingerprinting (e.g. blocking of the default `x_padding=XXXX...` query parameter pattern).

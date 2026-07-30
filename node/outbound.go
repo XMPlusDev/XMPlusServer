@@ -190,25 +190,46 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 			xhttpSettings.Host = x.Host
 			xhttpSettings.Path = x.Path
 			xhttpSettings.Mode = x.Mode
-			if x.XPaddingObfsMode {
+			if x.XPaddingObfsMode || x.Xmux != (api.XmuxConfig{}) {
+				maxConcurrency, err := parseInt32Range(x.Xmux.MaxConcurrency, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.MaxConcurrency: %w", err)
+				}
+				maxConnections, err := parseInt32Range(x.Xmux.MaxConnections, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.MaxConnections: %w", err)
+				}
+				cMaxReuseTimes, err := parseInt32Range(x.Xmux.CMaxReuseTimes, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.CMaxReuseTimes: %w", err)
+				}
+				hMaxRequestTimes, err := parseInt32Range(x.Xmux.HMaxRequestTimes, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.HMaxRequestTimes: %w", err)
+				}
+				hMaxReusableSecs, err := parseInt32Range(x.Xmux.HMaxReusableSecs, 0, 0)
+				if err != nil {
+					return nil, fmt.Errorf("Xmux.HMaxReusableSecs: %w", err)
+				}
 				extra := struct {
-					XPaddingObfsMode    bool   `json:"xPaddingObfsMode"`
-					XPaddingMethod      string `json:"xPaddingMethod,omitempty"`
-					XPaddingPlacement   string `json:"xPaddingPlacement,omitempty"`
-					XPaddingKey         string `json:"xPaddingKey,omitempty"`
-					XPaddingHeader      string `json:"xPaddingHeader,omitempty"`
-					UplinkHTTPMethod    string `json:"uplinkHTTPMethod,omitempty"`
-					SessionIDPlacement  string `json:"sessionIDPlacement,omitempty"`
-					SessionIDKey        string `json:"sessionIDKey,omitempty"`
-					SessionIDTable      string `json:"sessionIDTable,omitempty"`
-					SessionIDLength     string `json:"sessionIDLength,omitempty"`
-					SeqPlacement        string `json:"seqPlacement,omitempty"`
-					SeqKey              string `json:"seqKey,omitempty"`
-					UplinkDataPlacement string `json:"uplinkDataPlacement,omitempty"`
-					UplinkDataKey       string `json:"uplinkDataKey,omitempty"`
-					UplinkChunkSize     string `json:"uplinkChunkSize,omitempty"`
+					XPaddingObfsMode    bool            `json:"xPaddingObfsMode"`
+					XPaddingMethod      string          `json:"xPaddingMethod,omitempty"`
+					XPaddingPlacement   string          `json:"xPaddingPlacement,omitempty"`
+					XPaddingKey         string          `json:"xPaddingKey,omitempty"`
+					XPaddingHeader      string          `json:"xPaddingHeader,omitempty"`
+					UplinkHTTPMethod    string          `json:"uplinkHTTPMethod,omitempty"`
+					SessionIDPlacement  string          `json:"sessionIDPlacement,omitempty"`
+					SessionIDKey        string          `json:"sessionIDKey,omitempty"`
+					SessionIDTable      string          `json:"sessionIDTable,omitempty"`
+					SessionIDLength     string          `json:"sessionIDLength,omitempty"`
+					SeqPlacement        string          `json:"seqPlacement,omitempty"`
+					SeqKey              string          `json:"seqKey,omitempty"`
+					UplinkDataPlacement string          `json:"uplinkDataPlacement,omitempty"`
+					UplinkDataKey       string          `json:"uplinkDataKey,omitempty"`
+					UplinkChunkSize     string          `json:"uplinkChunkSize,omitempty"`
+					Xmux                conf.XmuxConfig `json:"xmux"`
 				}{
-					XPaddingObfsMode:    true,
+					XPaddingObfsMode:    x.XPaddingObfsMode,
 					XPaddingMethod:      x.XPaddingMethod,
 					XPaddingPlacement:   x.XPaddingPlacement,
 					XPaddingKey:         x.XPaddingKey,
@@ -223,6 +244,14 @@ func OutboundRelayBuilder(nodeInfo *api.RelayNodeInfo, tag string, subscription 
 					UplinkDataPlacement: x.UplinkDataPlacement,
 					UplinkDataKey:       x.UplinkDataKey,
 					UplinkChunkSize:     x.UplinkChunkSize,
+					Xmux: conf.XmuxConfig{
+						MaxConcurrency:   maxConcurrency,
+						MaxConnections:   maxConnections,
+						CMaxReuseTimes:   cMaxReuseTimes,
+						HMaxRequestTimes: hMaxRequestTimes,
+						HMaxReusableSecs: hMaxReusableSecs,
+						HKeepAlivePeriod: x.Xmux.HKeepAlivePeriod,
+					},
 				}
 				extraBytes, err := json.Marshal(extra)
 				if err != nil {

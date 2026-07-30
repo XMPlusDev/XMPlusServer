@@ -25,7 +25,7 @@ type ServerNode struct {
 
 type ServerNodesResponse struct {
 	Nodes        []*ServerNode `json:"nodes"`
-	PollInterval int           `json:"poll_interval"` 
+	PollInterval int           `json:"poll_interval"`
 	Version      int           `json:"api_version"`
 }
 
@@ -39,8 +39,8 @@ type PostData struct {
 }
 
 type serverConfig struct {
-	server        `json:"server"`
-	transitServer `json:"transit_server"`
+	server         `json:"server"`
+	transitServer  `json:"transit_server"`
 	UpdateInterval int      `json:"update_interval"`
 	IgnoreIPs      []string `json:"ignore_ips"`
 }
@@ -177,7 +177,7 @@ type QuicParamsSettings struct {
 	MaxIdleTimeout              int64
 	KeepAlivePeriod             int64
 	DisablePathMTUDiscovery     bool
-	MaxIncomingStreams           int64
+	MaxIncomingStreams          int64
 }
 
 type SocketSettings struct {
@@ -223,6 +223,17 @@ type XhttpSettings struct {
 	UplinkDataPlacement string
 	UplinkDataKey       string
 	UplinkChunkSize     string
+
+	Xmux XmuxConfig `json:"xmux"`
+}
+
+type XmuxConfig struct {
+	MaxConcurrency   string
+	MaxConnections   string
+	CMaxReuseTimes   string
+	HMaxRequestTimes string
+	HMaxReusableSecs string
+	HKeepAlivePeriod int64
 }
 
 type FinalRuleSettings struct {

@@ -40,7 +40,7 @@ func (c *Client) GetServerNodes() (*ServerNodesResponse, error) {
 	return &ServerNodesResponse{
 		Nodes:        nodes,
 		PollInterval: pollInterval,
-		Version: version,
+		Version:      version,
 	}, nil
 }
 
@@ -205,7 +205,7 @@ func (c *Client) GetTransitNode() (*RelayNodeInfo, error) {
 	nodeInfo.NodeType = s.RType
 	nodeInfo.NodeID = s.NodeId
 	nodeInfo.Address = s.RAddress
-	
+
 	connectPort, err := selectSinglePort(s.RPort)
 	if err != nil {
 		return nil, fmt.Errorf("failed to parse relay connection port: %w", err)
@@ -406,6 +406,16 @@ func parseNetworkSettings(
 		}
 		if v := transportSettings.Get("uplinkChunkSize").MustString(); v != "" {
 			x.UplinkChunkSize = v
+		}
+		if xmuxData, ok := transportSettings.CheckGet("xmux"); ok {
+			x.Xmux = XmuxConfig{
+				MaxConcurrency:   xmuxData.Get("maxConcurrency").MustString(),
+				MaxConnections:   xmuxData.Get("maxConnections").MustString(),
+				CMaxReuseTimes:   xmuxData.Get("cMaxReuseTimes").MustString(),
+				HMaxRequestTimes: xmuxData.Get("hMaxRequestTimes").MustString(),
+				HMaxReusableSecs: xmuxData.Get("hMaxReusableSecs").MustString(),
+				HKeepAlivePeriod: int64(xmuxData.Get("hKeepAlivePeriod").MustInt()),
+			}
 		}
 		*xhttp = x
 

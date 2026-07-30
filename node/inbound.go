@@ -7,8 +7,8 @@ import (
 	"fmt"
 	"strings"
 
-	C "github.com/sagernet/sing/common"
 	"github.com/sagernet/sing-shadowsocks/shadowaead_2022"
+	C "github.com/sagernet/sing/common"
 	"github.com/xtls/xray-core/common/net"
 	"github.com/xtls/xray-core/common/uuid"
 	"github.com/xtls/xray-core/core"
@@ -193,6 +193,34 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 				xhttpSettings.UplinkChunkSize = uplinkChunkSize
 			}
 		}
+		maxConcurrency, err := parseInt32Range(x.Xmux.MaxConcurrency, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Xmux.MaxConcurrency: %w", err)
+		}
+		maxConnections, err := parseInt32Range(x.Xmux.MaxConnections, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Xmux.MaxConnections: %w", err)
+		}
+		cMaxReuseTimes, err := parseInt32Range(x.Xmux.CMaxReuseTimes, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Xmux.CMaxReuseTimes: %w", err)
+		}
+		hMaxRequestTimes, err := parseInt32Range(x.Xmux.HMaxRequestTimes, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Xmux.HMaxRequestTimes: %w", err)
+		}
+		hMaxReusableSecs, err := parseInt32Range(x.Xmux.HMaxReusableSecs, 0, 0)
+		if err != nil {
+			return nil, fmt.Errorf("Xmux.HMaxReusableSecs: %w", err)
+		}
+		xhttpSettings.Xmux = conf.XmuxConfig{
+			MaxConcurrency:   maxConcurrency,
+			MaxConnections:   maxConnections,
+			CMaxReuseTimes:   cMaxReuseTimes,
+			HMaxRequestTimes: hMaxRequestTimes,
+			HMaxReusableSecs: hMaxReusableSecs,
+			HKeepAlivePeriod: x.Xmux.HKeepAlivePeriod,
+		}
 		streamSetting.XHTTPSettings = xhttpSettings
 
 	default:
@@ -207,7 +235,7 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 
 	if nodeInfo.SecurityType == "tls" && nodeInfo.TlsSettings != nil && nodeInfo.TlsSettings.CertMode != "none" {
 		streamSetting.Security = "tls"
-	    certFile, keyFile, err := getCertFile(config.CertConfig, nodeInfo.TlsSettings)
+		certFile, keyFile, err := getCertFile(config.CertConfig, nodeInfo.TlsSettings)
 		if err != nil {
 			return nil, err
 		}
@@ -237,13 +265,13 @@ func InboundBuilder(config *Config, nodeInfo *api.NodeInfo, tag string) (*core.I
 		streamSetting.Security = "reality"
 		rs := nodeInfo.RealitySettings
 		realitySettings := &conf.REALITYConfig{
-			Target:       rs.Dest,
-			Show:         rs.Show,
-			Xver:         rs.Xver,
-			ServerNames:  rs.ServerNames,
-			PrivateKey:   rs.PrivateKey,
-			ShortIds:     rs.ShortIds,
-			Mldsa65Seed:  rs.Mldsa65Seed,
+			Target:      rs.Dest,
+			Show:        rs.Show,
+			Xver:        rs.Xver,
+			ServerNames: rs.ServerNames,
+			PrivateKey:  rs.PrivateKey,
+			ShortIds:    rs.ShortIds,
+			Mldsa65Seed: rs.Mldsa65Seed,
 		}
 		if rs.MinClientVer != "" {
 			realitySettings.MinClientVer = rs.MinClientVer
@@ -284,7 +312,7 @@ func getCertFile(certConfig *cert.CertConfig, tlsSettings *api.TlsSettings) (cer
 		}
 		return cf, kf, nil
 	case "dns":
-		pn :=  certConfig.Provider
+		pn := certConfig.Provider
 		if tlsSettings != nil {
 			pn = tlsSettings.DnsProvider
 		}
