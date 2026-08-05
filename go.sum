@@ -1577,8 +1577,8 @@ github.com/sacloud/packages-go v0.1.0 h1:rixWcvkVUI4kX6UYTFJbQgZIoBoNhN48MivHIu3
 github.com/sacloud/packages-go v0.1.0/go.mod h1:ntmPnjF8+mGWNtxgBmO0CrLphUlmRkpy+DztjlECp8M=
 github.com/sacloud/saclient-go v0.4.0 h1:d4CqjKDU0muPVukZ2qGB9Me6ANEcMg73z5tIqXIyGWA=
 github.com/sacloud/saclient-go v0.4.0/go.mod h1:5CqxypkPgUW6qZxBGRdKX3I+mVx/OWbbFrrRm6LBNeE=
-github.com/sagernet/sing v0.8.11 h1:AKZRvjFPHtAXwGCjOJrzAQPiZxr8mobhuSUqkHf+VQw=
-github.com/sagernet/sing v0.8.11/go.mod h1:olXxWQNqRW/l2Q6JI3b2Qmz8iQnIFlOeeH8bx6JhgUA=
+github.com/sagernet/sing v0.8.12 h1:v77YM0gB0uCQ74f1RmiTDtkV8eNT6Qtniobxh012a5I=
+github.com/sagernet/sing v0.8.12/go.mod h1:olXxWQNqRW/l2Q6JI3b2Qmz8iQnIFlOeeH8bx6JhgUA=
 github.com/sagernet/sing-shadowsocks v0.2.9 h1:Paep5zCszRKsEn8587O0MnhFWKJwDW1Y4zOYYlIxMkM=
 github.com/sagernet/sing-shadowsocks v0.2.9/go.mod h1:TE/Z6401Pi8tgr0nBZcM/xawAI6u3F6TTbz4nH/qw+8=
 github.com/sagikazarmark/crypt v0.10.0/go.mod h1:gwTNHQVoOS3xp9Xvz5LLR+1AauC5M6880z5NWzdhOyQ=
@@ -1722,8 +1722,6 @@ github.com/xdg-go/stringprep v1.0.4/go.mod h1:mPGuuIYwz7CmR2bT9j4GbQqutWS1zV24gi
 github.com/xiang90/probing v0.0.0-20190116061207-43a291ad63a2/go.mod h1:UETIi67q53MR2AWcXfiuqkDkRtnGDLqkBTpCHuJHxtU=
 github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f h1:iy2JRioxmUpoJ3SzbFPyTxHZMbR/rSHP7dOOgYaq1O8=
 github.com/xtls/reality v0.0.0-20260322125925-9234c772ba8f/go.mod h1:DsJblcWDGt76+FVqBVwbwRhxyyNJsGV48gJLch0OOWI=
-github.com/xtls/xray-core v1.260327.1-0.20260726001337-d291486c544a h1:x9UKmmMzztWqgAYWYTwN+4BHGXlcD6/ALqbuIpaWFP0=
-github.com/xtls/xray-core v1.260327.1-0.20260726001337-d291486c544a/go.mod h1:wukQoBGnQ6GaLTGuKwv8rCTgf80QxPj+6iznDZHQEWo=
 github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc h1:fkOkmgHWbF2Q8MdV9VxrsyxRz4OndcrUXUkh1ANBTg0=
 github.com/xtls/xray-core v1.260327.1-0.20260728075948-5ca6f4b7d4dc/go.mod h1:wukQoBGnQ6GaLTGuKwv8rCTgf80QxPj+6iznDZHQEWo=
 github.com/yandex-cloud/go-genproto v0.95.0 h1:ByHofu3SFftRGDGNFCLOP8a+nAPJ0vF9qVtTKWiUVIQ=
