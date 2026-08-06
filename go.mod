@@ -16,7 +16,7 @@ require (
 	github.com/refraction-networking/utls v1.8.3-0.20260301010127-aa6edf4b11af
 	github.com/sagernet/sing v0.8.11
 	github.com/sagernet/sing-shadowsocks v0.2.9
-	github.com/shirou/gopsutil/v4 v4.26.6
+	github.com/shirou/gopsutil/v4 v4.26.7
 	github.com/sirupsen/logrus v1.9.4
 	github.com/spf13/cobra v1.10.2
 	github.com/spf13/viper v1.21.0
@@ -78,7 +78,7 @@ require (
 	github.com/clbanning/mxj/v2 v2.7.0 // indirect
 	github.com/davecgh/go-spew v1.1.2-0.20180830191138-d8f796af33cc // indirect
 	github.com/dnsimple/dnsimple-go/v9 v9.1.0 // indirect
-	github.com/ebitengine/purego v0.10.0 // indirect
+	github.com/ebitengine/purego v0.10.2 // indirect
 	github.com/exoscale/egoscale/v3 v3.1.41 // indirect
 	github.com/fatih/structs v1.1.0 // indirect
 	github.com/felixge/httpsnoop v1.0.4 // indirect
