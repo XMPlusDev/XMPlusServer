@@ -25,7 +25,6 @@ import (
 	"golang.org/x/time/rate"
 
 	"github.com/xmplusdev/xmray/api"
-	"github.com/xmplusdev/xmray/counter"
 	"github.com/xmplusdev/xmray/limiter"
 )
 
@@ -208,24 +207,17 @@ func (ld *LimitingDispatcher) resolveSession(ctx context.Context, link *transpor
 	}, nil
 }
 
-func (ld *LimitingDispatcher) userCounters(email string) (up stats.Counter, down stats.Counter) {
-	if ld.stm == nil {
-		return nil, nil
-	}
-	up, _ = ld.stm.GetOrRegisterCounter("user>>>"+email+">>>traffic>>>uplink")
-	down, _ = ld.stm.GetOrRegisterCounter("user>>>"+email+">>>traffic>>>downlink")
-	return up, down
-}
+// Traffic counting for "user>>>email>>>traffic>>>uplink/downlink" is already
+// performed by the inner xray-core dispatcher (gated by the UserUplink /
+// UserDownlink policy flags, see instance.policyConnectionConfig). Wrapping
+// the link with our own counter.StatWriter/StatReader here would add to the
+// same stats.Counter a second time and double-count every byte.
 
 func (ld *LimitingDispatcher) getLink(ctx context.Context, link *transport.Link) error {
 	sc, err := ld.resolveSession(ctx, link)
 	if err != nil || sc == nil {
 		return err
 	}
-
-	upCounter, _ := ld.userCounters(sc.info.email)
-
-	link.Writer = &counter.StatWriter{Writer: link.Writer, Counter: upCounter}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
@@ -242,11 +234,6 @@ func (ld *LimitingDispatcher) wrapLink(ctx context.Context, link *transport.Link
 	if err != nil || sc == nil {
 		return link, err
 	}
-
-	upCounter, downCounter := ld.userCounters(sc.info.email)
-
-	link.Writer = &counter.StatWriter{Writer: link.Writer, Counter: upCounter}
-	link.Reader = &counter.StatReader{Reader: twr, Counter: downCounter}
 
 	if sc.hasBucket {
 		link.Writer = ld.limiter.RateWriter(link.Writer, sc.bucket)
