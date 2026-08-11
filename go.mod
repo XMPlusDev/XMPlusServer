@@ -4,7 +4,7 @@ go 1.26
 
 require (
 	github.com/bitly/go-simplejson v0.5.1
-	github.com/cloudflare/circl v1.6.4
+	github.com/cloudflare/circl v1.6.5
 	github.com/eko/gocache/lib/v4 v4.2.4
 	github.com/eko/gocache/store/redis/v4 v4.2.6
 	github.com/fsnotify/fsnotify v1.10.1
