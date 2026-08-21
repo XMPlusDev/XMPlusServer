@@ -302,6 +302,29 @@ type PendingTraffic struct {
 	Counters []pendingCounter
 }
 
+// Chunk splits pending into batches of at most size records.
+//
+// Each batch keeps the counters belonging to its own records, so it can be
+// reported and reset independently: one batch failing must neither discard
+// counters another batch delivered nor retain ones it did not.
+func (p *PendingTraffic) Chunk(size int) []*PendingTraffic {
+	if p == nil || len(p.Result) == 0 {
+		return nil
+	}
+	if size <= 0 || len(p.Result) <= size {
+		return []*PendingTraffic{p}
+	}
+	chunks := make([]*PendingTraffic, 0, (len(p.Result)+size-1)/size)
+	for start := 0; start < len(p.Result); start += size {
+		end := min(start+size, len(p.Result))
+		chunks = append(chunks, &PendingTraffic{
+			Result:   p.Result[start:end],
+			Counters: p.Counters[start:end],
+		})
+	}
+	return chunks
+}
+
 func (l *Limiter) DrainDeltas(tag string) *PendingTraffic {
 	value, ok := l.InboundInfo.Load(tag)
 	if !ok {

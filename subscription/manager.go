@@ -7,6 +7,7 @@ import (
 
 	"github.com/xmplusdev/xmray/api"
 	"github.com/xmplusdev/xmray/dispatcher"
+	"github.com/xmplusdev/xmray/limiter"
 
 	"github.com/xtls/xray-core/common/protocol"
 	"github.com/xtls/xray-core/core"
@@ -111,57 +112,95 @@ func Compare(old, new *[]api.SubscriptionInfo) (deleted, added, modified []api.S
 	return
 }
 
+const reverbBatchSize = 100
+
+func (m *Manager) reportTraffic(pending *limiter.PendingTraffic, logPrefix string, pusher func(string, any) error) {
+	var undelivered []*limiter.PendingTraffic
+	pushed := 0
+
+	for _, chunk := range pending.Chunk(reverbBatchSize) {
+		if pusher == nil {
+			undelivered = append(undelivered, chunk)
+			continue
+		}
+		traffic := make([]api.Traffic, len(chunk.Result))
+		for idx, t := range chunk.Result {
+			traffic[idx] = api.Traffic{Id: t.Id, Upload: t.Upload, Download: t.Download}
+		}
+		if err := pusher("traffic_report", traffic); err != nil {
+			log.Printf("%s Failed to push traffic data via Reverb: %v", logPrefix, err)
+			undelivered = append(undelivered, chunk)
+			continue
+		}
+		m.dispatcher.ResetTraffic(chunk)
+		pushed += len(chunk.Result)
+	}
+	if pushed > 0 {
+		log.Printf("%s Pushed %d Traffic Usage Data via Reverb", logPrefix, pushed)
+	}
+	if len(undelivered) == 0 {
+		return
+	}
+
+	records := make([]api.SubscriptionTraffic, 0, len(undelivered)*reverbBatchSize)
+	for _, chunk := range undelivered {
+		records = append(records, chunk.Result...)
+	}
+	if err := m.client.ReportTraffic(&records); err != nil {
+		log.Printf("%s Failed to report traffic data: %v", logPrefix, err)
+		return
+	}
+	log.Printf("%s Report %d Traffic Usage Data", logPrefix, len(records))
+	for _, chunk := range undelivered {
+		m.dispatcher.ResetTraffic(chunk)
+	}
+}
+
+func (m *Manager) reportOnlineIPs(onlineIPs []api.OnlineIP, logPrefix string, pusher func(string, any) error) {
+	var undelivered []api.OnlineIP
+	pushed := 0
+
+	for start := 0; start < len(onlineIPs); start += reverbBatchSize {
+		batch := onlineIPs[start:min(start+reverbBatchSize, len(onlineIPs))]
+		if pusher == nil {
+			undelivered = append(undelivered, batch...)
+			continue
+		}
+		aliveIPs := make([]api.AliveIP, len(batch))
+		for idx, ip := range batch {
+			aliveIPs[idx] = api.AliveIP{Id: ip.Id, IP: ip.IP}
+		}
+		if err := pusher("online_ips", aliveIPs); err != nil {
+			log.Printf("%s Failed to push online IPs via Reverb: %v", logPrefix, err)
+			undelivered = append(undelivered, batch...)
+			continue
+		}
+		pushed += len(batch)
+	}
+	if pushed > 0 {
+		log.Printf("%s Pushed %d Online IPs Data via Reverb", logPrefix, pushed)
+	}
+	if len(undelivered) == 0 {
+		return
+	}
+
+	if err := m.client.ReportOnlineIPs(&undelivered); err != nil {
+		log.Printf("%s Failed to report online IPs: %v", logPrefix, err)
+		return
+	}
+	log.Printf("%s Report %d Online IPs Data", logPrefix, len(undelivered))
+}
+
 func (m *Manager) SubscriptionMonitor(tag string, logPrefix string, pusher func(string, any) error) error {
-	pendingTraffic := m.dispatcher.DrainDeltas(tag)
-	if pendingTraffic != nil && len(pendingTraffic.Result) > 0 {
-		pushed := false
-		if pusher != nil {
-			traffic := make([]api.Traffic, len(pendingTraffic.Result))
-			for idx, t := range pendingTraffic.Result {
-				traffic[idx] = api.Traffic{Id: t.Id, Upload: t.Upload, Download: t.Download}
-			}
-			if err := pusher("traffic_report", traffic); err != nil {
-				log.Printf("%s Failed to push traffic data via Reverb: %v", logPrefix, err)
-			} else {
-				m.dispatcher.ResetTraffic(pendingTraffic)
-				log.Printf("%s Pushed %d Traffic Usage Data via Reverb", logPrefix, len(pendingTraffic.Result))
-				pushed = true
-			}
-		}
-		if !pushed {
-			if err := m.client.ReportTraffic(&pendingTraffic.Result); err != nil {
-				log.Printf("%s Failed to report traffic data: %v", logPrefix, err)
-			} else {
-				log.Printf("%s Report %d Traffic Usage Data", logPrefix, len(pendingTraffic.Result))
-				m.dispatcher.ResetTraffic(pendingTraffic)
-			}
-		}
+	if pendingTraffic := m.dispatcher.DrainDeltas(tag); pendingTraffic != nil {
+		m.reportTraffic(pendingTraffic, logPrefix, pusher)
 	}
 
 	onlineIPs, err := m.GetOnlineIPs(tag)
 	if err != nil {
 		log.Print(err)
-	} else if len(*onlineIPs) > 0 {
-		pushed := false
-		if pusher != nil {
-			aliveIPs := make([]api.AliveIP, len(*onlineIPs))
-			for idx, ip := range *onlineIPs {
-				aliveIPs[idx] = api.AliveIP{Id: ip.Id, IP: ip.IP}
-			}
-			if err := pusher("online_ips", aliveIPs); err != nil {
-				log.Printf("%s Failed to push online IPs via Reverb: %v", logPrefix, err)
-			} else {
-				log.Printf("%s Pushed %d Online IPs Data via Reverb", logPrefix, len(*onlineIPs))
-				pushed = true
-			}
-		}
-		if !pushed {
-			if err = m.client.ReportOnlineIPs(onlineIPs); err != nil {
-				log.Printf("%s Failed to report online IPs: %v", logPrefix, err)
-			} else {
-				log.Printf("%s Report %d Online IPs Data", logPrefix, len(*onlineIPs))
-			}
-		}
+	} else if onlineIPs != nil && len(*onlineIPs) > 0 {
+		m.reportOnlineIPs(*onlineIPs, logPrefix, pusher)
 	}
 	return nil
 }
