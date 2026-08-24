@@ -44,7 +44,7 @@ func executeVLESSEnc() error {
 	encryptionPQ := generateDotConfig("mlkem768x25519plus", "native", "0rtt", clientKeyPQ)
 	
 	// Print results
-	fmt.Println("\nChoose one Authentication to use, do not mix them.\n")
+	fmt.Printf("\nChoose one Authentication to use, do not mix them.\n\n")
 	fmt.Printf("Authentication: X25519, not Post-Quantum\n【decryption】: %v\n【encryption】: %v\n\n", decryption, encryption)
 	fmt.Printf("Authentication: ML-KEM-768, Post-Quantum\n【decryption】: %v\n【encryption】: %v\n", decryptionPQ, encryptionPQ)
 	

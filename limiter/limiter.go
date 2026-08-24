@@ -4,14 +4,11 @@ import (
 	"context"
 	"fmt"
 	"log"
+	"strconv"
 	"strings"
 	"sync"
 	"time"
 
-	"github.com/eko/gocache/lib/v4/cache"
-	"github.com/eko/gocache/lib/v4/marshaler"
-	"github.com/eko/gocache/lib/v4/store"
-	redisStore "github.com/eko/gocache/store/redis/v4"
 	"github.com/redis/go-redis/v9"
 	"github.com/xtls/xray-core/core"
 	"github.com/xtls/xray-core/features/stats"
@@ -26,11 +23,65 @@ type SubscriptionInfo struct {
 	IPLimit    int
 }
 
-type IPData struct {
-	UID   int
-	Tag   string
-	Email string
-}
+// ipKeyPrefix namespaces the per-subscription IP hashes.
+//
+// Shared verbatim with XMBox. ip_limit is a property of the subscription, not
+// of whichever backend served the connection, so both must count into the same
+// hash — otherwise a user reaches the limit separately on each and effectively
+// gets twice the addresses. This relies on node tags being unique across both,
+// which holds because each tag carries the panel's node ID.
+//
+// Also deliberately different from the key the previous format used: that one
+// held a serialised map as a plain string, and a hash command against it would
+// fail with WRONGTYPE. Old keys expire on their own TTL.
+const ipKeyPrefix = "xmplus:ip:"
+
+// ipKey returns the hash holding one subscription's connected addresses.
+func ipKey(subscription string) string { return ipKeyPrefix + subscription }
+
+// ipField identifies one address on one node. The tag is part of the field so a
+// single address in use on two nodes stays distinguishable; "|" is a safe
+// separator because neither IPv4 nor IPv6 literals contain it.
+func ipField(ip, tag string) string { return ip + "|" + tag }
+
+// ipLimitScript decides whether a connection is allowed and records it, in one
+// atomic step.
+//
+// This replaces a read-modify-write of the whole address map: two connections
+// for the same subscription would each read the map, add their own address and
+// write the result back, so whichever finished last erased the other's entry.
+// Running the check and the insert together inside Redis removes that window,
+// and touching a single field rather than rewriting the map means concurrent
+// connections no longer overwrite each other at all.
+//
+// KEYS[1] the subscription's hash. ARGV: 1 field, 2 UID, 3 IP limit (0 means
+// unlimited), 4 TTL in seconds, 5 the address on its own.
+// Returns 1 when the connection must be rejected, 0 when it is allowed.
+var ipLimitScript = redis.NewScript(`
+local field = ARGV[1]
+if redis.call('HEXISTS', KEYS[1], field) == 0 then
+  local limit = tonumber(ARGV[3])
+  if limit > 0 then
+    local seen = {}
+    local distinct = 0
+    for _, f in ipairs(redis.call('HKEYS', KEYS[1])) do
+      local addr = string.match(f, '^(.+)|[^|]*$')
+      if addr and not seen[addr] then
+        seen[addr] = true
+        distinct = distinct + 1
+      end
+    end
+    -- An address already counted under another node must not be turned away:
+    -- the limit is on distinct addresses, not on connections.
+    if distinct >= limit and not seen[ARGV[5]] then
+      return 1
+    end
+  end
+end
+redis.call('HSET', KEYS[1], field, ARGV[2])
+redis.call('EXPIRE', KEYS[1], ARGV[4])
+return 0
+`)
 
 type InboundInfo struct {
 	Tag              string
@@ -39,8 +90,9 @@ type InboundInfo struct {
 	SubscriptionInfo *sync.Map // key: email → SubscriptionInfo
 	BucketHub        *sync.Map // key: email → *rate.Limiter
 	GlobalIPLimit    struct {
-		config         *RedisConfig
-		globalOnlineIP *marshaler.Marshaler
+		config *RedisConfig
+		client *redis.Client
+		expiry time.Duration
 	}
 }
 
@@ -60,14 +112,23 @@ func New(server *core.Instance, redisConfig *RedisConfig) *Limiter {
 		redisConfig: redisConfig,
 	}
 	if redisConfig != nil && redisConfig.Enable {
+		timeout := redisConfig.timeout()
 		l.redisClient = redis.NewClient(&redis.Options{
-			Network:     redisConfig.Network,
-			Addr:        redisConfig.Addr,
-			Username:    redisConfig.Username,
-			Password:    redisConfig.Password,
-			DB:          redisConfig.DB,
-			DialTimeout: time.Duration(redisConfig.Timeout) * time.Second,
-			PoolSize:    10,
+			Network:  redisConfig.Network,
+			Addr:     redisConfig.Addr,
+			Username: redisConfig.Username,
+			Password: redisConfig.Password,
+			DB:       redisConfig.DB,
+			// The pool was fixed at 10 regardless of how many connections this
+			// node accepts, so commands queued for a slot and that wait counted
+			// against their deadline.
+			PoolSize:    redisConfig.poolSize(),
+			DialTimeout: timeout,
+			// Fail a command that cannot get a pool slot in time instead of
+			// letting it sit there until the caller's context expires.
+			PoolTimeout:  timeout,
+			ReadTimeout:  timeout,
+			WriteTimeout: timeout,
 		})
 	}
 	return l
@@ -91,9 +152,10 @@ func (l *Limiter) AddInboundLimiter(tag string, expiry int, nodeSpeedLimit uint6
 	}
 
 	if l.redisClient != nil {
+		// Nodes share one Redis connection; the TTL is per node.
 		inboundInfo.GlobalIPLimit.config = l.redisConfig
-		rs := redisStore.NewRedis(l.redisClient, store.WithExpiration(time.Duration(expiry)*time.Second))
-		inboundInfo.GlobalIPLimit.globalOnlineIP = marshaler.New(cache.New[any](rs))
+		inboundInfo.GlobalIPLimit.client = l.redisClient
+		inboundInfo.GlobalIPLimit.expiry = time.Duration(expiry) * time.Second
 	} else {
 		log.Printf("[Limiter] Redis disabled for tag %s — IP limiting unavailable", tag)
 	}
@@ -184,59 +246,57 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 	inboundInfo := value.(*InboundInfo)
 
 	if inboundInfo.GlobalIPLimit.config != nil && inboundInfo.GlobalIPLimit.config.Enable {
-		ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
+		ctx, cancel := context.WithTimeout(context.Background(), inboundInfo.GlobalIPLimit.config.timeout())
 		defer cancel()
 
+		client := inboundInfo.GlobalIPLimit.client
+
+		// Drop rate buckets for subscriptions with nothing tracked any more.
+		// The key's existence is the answer now, so no payload has to be
+		// fetched and deserialised to ask a yes/no question.
 		inboundInfo.BucketHub.Range(func(key, value interface{}) bool {
 			email := key.(string)
-			if _, ok := inboundInfo.SubscriptionInfo.Load(email); ok {
-				uniqueKey := strings.TrimPrefix(email, inboundInfo.Tag+"_")
-				v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
-				if err != nil {
-					inboundInfo.BucketHub.Delete(email)
-				} else {
-					ipMap := v.(*map[string][]IPData)
-					emailFound := false
-					for _, dataList := range *ipMap {
-						for _, data := range dataList {
-							if data.Email == email {
-								emailFound = true
-								break
-							}
-						}
-						if emailFound {
-							break
-						}
-					}
-					if !emailFound {
-						inboundInfo.BucketHub.Delete(email)
-					}
-				}
+			if _, ok := inboundInfo.SubscriptionInfo.Load(email); !ok {
+				return true
+			}
+			n, err := client.Exists(ctx, ipKey(strings.TrimPrefix(email, inboundInfo.Tag+"_"))).Result()
+			if err != nil || n == 0 {
+				inboundInfo.BucketHub.Delete(email)
 			}
 			return true
 		})
 
+		// Collect this node's addresses and clear them.
+		suffix := "|" + tag
 		inboundInfo.SubscriptionInfo.Range(func(key, value interface{}) bool {
 			email := key.(string)
-			uniqueKey := strings.TrimPrefix(email, inboundInfo.Tag+"_")
-			v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
-			if err == nil {
-				ipMap := v.(*map[string][]IPData)
-				modified := false
-				for ip, dataList := range *ipMap {
-					remaining := dataList[:0]
-					for _, data := range dataList {
-						if data.Tag == tag {
-							onlineIP = append(onlineIP, api.OnlineIP{Id: data.UID, IP: ip})
-							modified = true
-						} else {
-							remaining = append(remaining, data)
-						}
-					}
-					(*ipMap)[ip] = remaining
+			redisKey := ipKey(strings.TrimPrefix(email, inboundInfo.Tag+"_"))
+
+			fields, err := client.HGetAll(ctx, redisKey).Result()
+			if err != nil {
+				log.Printf("[Limiter] failed to read online IPs for %s: %v", redisKey, err)
+				return true
+			}
+
+			claimed := make([]string, 0, len(fields))
+			for field, uid := range fields {
+				if !strings.HasSuffix(field, suffix) {
+					continue // another node's entry for the same subscription
 				}
-				if modified {
-					go pushIP(inboundInfo, uniqueKey, ipMap)
+				id, convErr := strconv.Atoi(uid)
+				if convErr != nil {
+					continue
+				}
+				onlineIP = append(onlineIP, api.OnlineIP{Id: id, IP: strings.TrimSuffix(field, suffix)})
+				claimed = append(claimed, field)
+			}
+
+			// Only the fields just read are deleted, so an address recorded
+			// between the read and the delete stays to be reported next cycle
+			// rather than being dropped unreported.
+			if len(claimed) > 0 {
+				if err := client.HDel(ctx, redisKey, claimed...).Err(); err != nil {
+					log.Printf("[Limiter] failed to clear reported IPs for %s: %v", redisKey, err)
 				}
 			}
 			return true
@@ -249,7 +309,7 @@ func (l *Limiter) GetOnlineIPs(tag string) (*[]api.OnlineIP, error) {
 func (l *Limiter) GetLimiter(tag string, email string, ip string) (limiter *rate.Limiter, isSpeedLimited bool, Reject bool) {
 	value, ok := l.InboundInfo.Load(tag)
 	if !ok {
-		newError("Get Limiter information failed").AtDebug()
+		log.Printf("[Limiter] no info for tag: %s", tag)
 		return nil, false, false
 	}
 
@@ -385,54 +445,24 @@ func (l *Limiter) ResetTraffic(pending *PendingTraffic) {
 }
 
 func checkLimit(inboundInfo *InboundInfo, email string, uid int, ip string, ipLimit int, tag string) bool {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
+	ctx, cancel := context.WithTimeout(context.Background(), inboundInfo.GlobalIPLimit.config.timeout())
 	defer cancel()
 
-	uniqueKey := strings.TrimPrefix(email, inboundInfo.Tag+"_")
+	key := ipKey(strings.TrimPrefix(email, inboundInfo.Tag+"_"))
+	ttl := int(inboundInfo.GlobalIPLimit.expiry / time.Second)
+	if ttl <= 0 {
+		ttl = 1
+	}
 
-	v, err := inboundInfo.GlobalIPLimit.globalOnlineIP.Get(ctx, uniqueKey, new(map[string][]IPData))
+	rejected, err := ipLimitScript.Run(ctx, inboundInfo.GlobalIPLimit.client,
+		[]string{key}, ipField(ip, tag), uid, ipLimit, ttl, ip).Int()
 	if err != nil {
-		if _, ok := err.(*store.NotFound); ok {
-			go pushIP(inboundInfo, uniqueKey, &map[string][]IPData{ip: {{UID: uid, Tag: tag, Email: email}}})
-		} else {
-			newError("cache service").Base(err).AtError()
-		}
+		// Fail open. A Redis problem locking every user out of every node is a
+		// far worse outcome than briefly not enforcing the address limit.
+		log.Printf("[Limiter] IP limit check failed for %s: %v", key, err)
 		return false
 	}
-
-	ipMap := v.(*map[string][]IPData)
-	if dataList, ipExists := (*ipMap)[ip]; ipExists {
-		found := false
-		for i, data := range dataList {
-			if data.UID == uid && data.Tag == tag {
-				dataList[i] = IPData{UID: uid, Tag: tag, Email: email}
-				found = true
-				break
-			}
-		}
-		if !found {
-			(*ipMap)[ip] = append(dataList, IPData{UID: uid, Tag: tag, Email: email})
-		} else {
-			(*ipMap)[ip] = dataList
-		}
-		go pushIP(inboundInfo, uniqueKey, ipMap)
-		return false
-	}
-
-	if ipLimit > 0 && len(*ipMap) >= ipLimit {
-		return true
-	}
-	(*ipMap)[ip] = []IPData{{UID: uid, Tag: tag, Email: email}}
-	go pushIP(inboundInfo, uniqueKey, ipMap)
-	return false
-}
-
-func pushIP(inboundInfo *InboundInfo, uniqueKey string, ipMap *map[string][]IPData) {
-	ctx, cancel := context.WithTimeout(context.Background(), time.Duration(inboundInfo.GlobalIPLimit.config.Timeout)*time.Second)
-	defer cancel()
-	if err := inboundInfo.GlobalIPLimit.globalOnlineIP.Set(ctx, uniqueKey, ipMap); err != nil {
-		newError("Redis cache service").Base(err).AtError()
-	}
+	return rejected == 1
 }
 
 func determineRate(nodeLimit, subscriptionLimit uint64) uint64 {
