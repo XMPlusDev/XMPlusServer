@@ -270,6 +270,43 @@ func TestGetOnlineIPsClearsOnlyOwnTag(t *testing.T) {
 	}
 }
 
+// The sweep must scale past one batch. It used to issue a command per
+// subscription under a single shared deadline, so on a node with many of them
+// the budget ran out partway through and every remaining one failed with
+// "context deadline exceeded".
+func TestGetOnlineIPsAcrossManySubscriptions(t *testing.T) {
+	info, _ := newTestLimiter(t, testTag)
+	const subscriptions = redisBatchSize*3 + 7 // spans several batches unevenly
+
+	for i := range subscriptions {
+		email := fmt.Sprintf("%s_user%d@x", testTag, i)
+		info.SubscriptionInfo.Store(email, SubscriptionInfo{Id: i + 1})
+		if checkLimit(info, email, i+1, fmt.Sprintf("192.0.2.%d", i%256), 0, testTag) {
+			t.Fatalf("subscription %d rejected", i)
+		}
+	}
+
+	l := &Limiter{InboundInfo: new(sync.Map)}
+	l.InboundInfo.Store(testTag, info)
+
+	online, err := l.GetOnlineIPs(testTag)
+	if err != nil {
+		t.Fatalf("GetOnlineIPs: %v", err)
+	}
+	if len(*online) != subscriptions {
+		t.Errorf("reported %d addresses, want all %d — the sweep dropped some", len(*online), subscriptions)
+	}
+
+	// A second sweep must find nothing: everything reported was cleared.
+	online, err = l.GetOnlineIPs(testTag)
+	if err != nil {
+		t.Fatalf("second GetOnlineIPs: %v", err)
+	}
+	if len(*online) != 0 {
+		t.Errorf("second sweep reported %d addresses, want 0", len(*online))
+	}
+}
+
 // IPv6 literals contain colons; the field separator and suffix trimming must
 // survive them intact.
 func TestIPLimitIPv6RoundTripThroughRedis(t *testing.T) {
